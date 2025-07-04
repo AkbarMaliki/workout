@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workout Progression Game</title>
+    <link rel="stylesheet" href="https://web-raker-deploy.vercel.app/all.css">
+    <style>
+        body {
+            background: #f2f5f7;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+
+        .center {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .login-container {
+            background: #fff;
+            margin: 70px auto 32px auto;
+            max-width: 370px;
+            border-radius: 13px;
+            padding: 42px 32px 36px 32px;
+            box-shadow: 0 8px 36px #264b5d25;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .login-container h2 {
+            margin-bottom: 22px;
+        }
+
+        .login-container input {
+            padding: 8px 13px;
+            font-size: 1.1em;
+            border-radius: 8px;
+            border: 1px solid #bbb;
+            width: 210px;
+            margin-bottom: 12px;
+        }
+
+        .login-container button {
+            padding: 7px 22px;
+            border: none;
+            background: #3197e0;
+            color: #fff;
+            font-size: 1em;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .logout-btn {
+            position: absolute;
+            right: 24px;
+            top: 28px;
+            font-size: 11px;
+            padding: 5px 14px;
+            border-radius: 10px;
+            border: none;
+            background: #e84357;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        .status-card {
+            margin-bottom: 11px;
+        }
+
+        .avatar-shadow {
+            border-radius: 14px;
+            border: 2px solid #bee0e0;
+            background: #f5fafc;
+            box-shadow: 0 2px 8px #acd3df1e;
+            height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 13px;
+            width: 120px;
+            margin-top: 8px;
+        }
+
+        .progress-txt {
+            font-size: 1.04em;
+            margin-bottom: 8px;
+            color: #3197e0;
+        }
+
+        .exp-bar-bg {
+            width: 95%;
+            background: #eaf4fb;
+            margin-bottom: 9px;
+            height: 14px;
+            border-radius: 7px;
+            position: relative;
+            margin-top: -4px;
+            box-shadow: 0 1px 2px #6ac9f317;
+        }
+
+        .exp-bar {
+            background: linear-gradient(90deg, #41c8ff 50%, #178cf7 100%);
+            height: 100%;
+            border-radius: 7px;
+            position: absolute;
+            left: 0;
+            top: 0;
+            transition: width 0.5s;
+        }
+
+        .status-list p {
+            margin: 6px 0 2px 0;
+        }
+
+        .status-list strong {
+            min-width: 84px;
+            display: inline-block;
+        }
+
+        .skills-line {
+            display: block;
+            background: #eaf4fb;
+            border-radius: 7px;
+            padding: 7px 13px 5px 13px;
+            margin-top: 4px;
+            font-size: 14px;
+        }
+
+
+        form label {
+            min-width: 55px;
+            font-size: 15px;
+        }
+
+        form input,
+        form select {
+            padding: 4px;
+            font-size: 1rem;
+            border-radius: 6px;
+            margin-right: 2px;
+        }
+
+        form button[type=submit] {
+            background: #3197e0;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 6px 16px;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+            margin-left: 6px;
+        }
+
+        #log {
+            min-height: 26px;
+            margin-top: 6px;
+            color: #2b9242;
+            font-size: 1rem;
+        }
+
+        .history-box {
+            background: #f1f7fe;
+            border-radius: 10px;
+            padding: 12px 18px;
+            margin-top: 18px;
+            font-size: 15px;
+            box-shadow: 0 1px 4px #add4fa0a;
+        }
+
+        .history-box h4 {
+            margin-bottom: 8px;
+        }
+
+        .history-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 95px;
+            overflow-y: auto;
+        }
+
+        .history-list li {
+            margin-bottom: 3px;
+            font-size: 14px;
+        }
+
+        .extra-param {
+            width: 92px;
+        }
+       
+
+    </style>
+</head>
+
+<body>
+    <!-- use version 0.20.3 -->
+    <script type="text/javascript" src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <div id="app">
+        <div v-if="!loggedIn" class="login-container">
+            <h2>Welcome to Workout Progression</h2>
+            <input placeholder="Enter your username" v-model="loginInput" @keyup.enter="login" autofocus maxlength="18">
+            <p>Berat Badan (kg)</p>
+            <input placeholder="Berat badan (kg)" type="number" min="25" max="250" v-model.number="loginWeight" style="margin-bottom:10px;">
+            <p>Tinggi Badan (cm)</p>
+            <input placeholder="Tinggi badan (cm)" type="number" min="90" max="230" v-model.number="loginHeight" style="margin-bottom:18px;">
+            <button @click="login">Login</button>
+        </div>
+
+        <div v-else class=" row justify-content-center">
+            <div class="col-10 bg-white sm:p-5 shadow rounded-lg">
+                <button class="logout-btn" @click="logout">Logout</button>
+                <h1>Workout Progression Tracker</h1>
+                <div class="status-card">
+                    <div class="row">
+                        <div class="col-sm-3">
+                            <div class="avatar-shadow" title="Your Avatar">
+                                <img src="https://cdn.pixabay.com/photo/2014/04/03/00/41/silhouette-312255_960_720.png"
+                                    alt="Character" width="75" style="display:block;">
+                            </div>
+                        </div>
+                        <div class="col-sm-9">
+                            <div class="row">
+                                <div class="col-6">
+                                    <p><strong>Name:</strong> {{ character.name }}</p>
+                                    <p><strong>Level:</strong> {{ character.level }}</p>
+                                    <p><strong>BB/TB:</strong> {{ character.weight }}kg / {{ character.height }}cm</p>
+                                    <div class="progress-txt"><strong>EXP:</strong> {{ character.exp }} / {{ character.expToNext }}
+                                    </div>
+                                    <div class="exp-bar-bg">
+                                        <div class="exp-bar" :style="expBarStyle"></div>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <p><strong>Skills:</strong>
+                                        <span v-if="character.skills.length" class="skills-line">{{ skillString }}</span>
+                                        <span v-else style="font-size:14px;color:#bdbdbd;">None</span>
+                                    </p>
+                                </div>
+                               
+                            </div>
+                        </div>
+                        
+                    </div>
+                </div>
+                <hr>
+              
+                
+                <form @submit.prevent="logWorkout">
+                    <div class="row">
+                        <div class="col-sm-3">
+                            <div class="pl-4">
+                                <div v-for="g in groupList" :key="g" style="margin-right:12px;">
+                                    <input
+                                        type="radio"
+                                        :id="'group-' + g"
+                                        name="group"
+                                        v-model="selectedGroup"
+                                        :value="g"
+                                    >
+                                    <label :for="'group-' + g" style="margin-right:4px;">{{ g }}</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-sm-5">
+
+                            <table>
+                                <tr>
+                                    <td>
+                                        <label for="skill">Skill:</label>
+                                    </td>
+                                    <td>
+                                        <select id="skill" v-model="input.skill" required style="width: 100%;" @change="changeImage">
+                                            <option v-for="skill in filteredSkills" :value="skill.code" :key="skill.code">
+                                                {{ skill.name }} [{{ skill.tag }}]
+                                            </option>
+                                        </select>
+                                    </td>
+                                </tr>
+                                <tr v-if="currentSkill.params.reps">
+                                    <td>
+                                        <label for="reps">Reps:</label>
+                                    </td>
+                                    <td>
+                                        <input id="reps" type="number" min="1" v-model.number="input.reps" style="width: 100%;">
+                                    </td>
+                                </tr>
+                                <tr v-if="currentSkill.params.sets">
+                                    <td>
+                                        <label for="sets">Sets:</label>
+                                    </td>
+                                    <td>
+                                        <input id="sets" type="number" min="1" v-model.number="input.sets" style="width: 100%;">
+                                    </td>
+                                </tr>
+                                <tr v-if="currentSkill.params.hold">
+                                    <td>
+                                        <label for="hold">Hold(s):</label>
+                                    </td>
+                                    <td>
+                                        <input id="hold" type="number" min="1" v-model.number="input.hold" class="extra-param" style="width: 100%;">
+                                    </td>
+                                </tr>
+                                <tr v-if="currentSkill.params.weight">
+                                    <td>
+                                        <label for="weight">Weight(kg):</label>
+                                    </td>
+                                    <td>
+                                        <input id="weight" type="number" min="0" v-model.number="input.weight" class="extra-param" style="width: 100%;">
+                                    </td>
+                                </tr>
+                                <tr v-if="currentSkill.params.distance">
+                                    <td>
+                                        <label for="distance">Distance(m):</label>
+                                    </td>
+                                    <td>
+                                        <input id="distance" type="number" min="1" v-model.number="input.distance" class="extra-param" style="width: 100%;">
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <label for="submitWeight">BB(kg):</label>
+                                    </td>
+                                    <td>
+                                        <input id="submitWeight" type="number" min="25" max="250" v-model.number="input.submitWeight" style="width: 100%;">
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <label for="submitHeight">TB(cm):</label>
+                                    </td>
+                                    <td>
+                                        <input id="submitHeight" type="number" min="90" max="230" v-model.number="input.submitHeight" style="width: 100%;">
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <div class="col-sm-4">
+                            <br/>
+                            <hr/>
+                            <button type="submit">Submit Workout</button>
+                            <hr/>
+                            <img :src="image" alt="">
+
+                        </div>
+                    </div>
+                </form>
+                <hr>
+                <div class="row">
+                    <div class="col-sm-8">
+                        <div class="goal-box" style="margin-top:12px;">
+                            <h4>🎯 Goals & Milestones</h4>
+                            <form @submit.prevent="addGoal" style="margin-bottom:7px;">
+                                <select v-model="goalInput.skill" required>
+                                    <option v-for="skill in skillList" :value="skill.code">{{skill.name}}</option>
+                                </select>
+                                <select v-model="goalInput.type" required>
+                                    <option value="reps">Reps</option>
+                                    <option value="hold">Hold(s)</option>
+                                    <option value="weight">Weight(kg)</option>
+                                    <option value="distance">Distance(m)</option>
+                                </select>
+                                <input v-model.number="goalInput.value" type="number" min="1" style="width:66px;">
+                                <button type="submit">Add</button>
+                            </form>
+                            <ul style="font-size:14px; padding-left:15px;">
+                                <li v-for="g in goals" :style="g.reached?'color:#2ba921;font-weight:bold':''">
+                                    {{ skillList.find(s=>s.code===g.skill)?.name || g.skill }} – 
+                                    {{ g.type }} {{g.value}} 
+                                    <span v-if="g.reached">✔️</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <div class="personal-best-box" v-if="Object.keys(personalBest).length">
+                            <h4>🏆 Personal Best</h4>
+                            <ul style="padding-left: 12px; font-size: 14px;">
+                                <li v-for="skill in character.skills" :key="skill.code">
+                                    <strong>{{ skill.name }}</strong>:
+                                    <template v-if="personalBest[skill.code]">
+                                        <span v-if="personalBest[skill.code].reps"> {{ personalBest[skill.code].reps }} reps, </span>
+                                        <span v-if="personalBest[skill.code].hold"> {{ personalBest[skill.code].hold }}s hold, </span>
+                                        <span v-if="personalBest[skill.code].weight && personalBest[skill.code].weight>0"> {{ personalBest[skill.code].weight }}kg, </span>
+                                        <span v-if="personalBest[skill.code].distance"> {{ personalBest[skill.code].distance }}m, </span>
+                                        <span style="color:#aaa;">{{ formatTime(personalBest[skill.code].updated) }}</span>
+                                    </template>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <hr>
+                <div class="chart-section" v-if="loggedIn">
+                    <div class="row">
+                        <div class="col-sm-4">
+                            <div id="xpPerDayChart" ></div>
+                        </div>
+                        <div class="col-sm-4">
+                            <div id="expPerSkillChart" ></div>
+                        </div>
+                        <div class="col-sm-4">
+                            <div id="skillPieChart" ></div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div id="weeklyChart"></div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div id="monthlyChart"></div>
+                        </div>
+                    </div>
+                </div>
+                <hr>
+                <div id="log">{{ log }}</div>
+                <div class="history-box" v-if="history.length">
+                    <h4>Recent Workouts</h4>
+                    <button @click="exportToExcel" style="margin-top:12px;width:170px;">Export to Excel</button>
+                    <ul class="history-list">
+                        <li v-for="item in history.slice(-6).reverse()">
+                            [{{ formatTime(item.timestamp) }}] <strong>{{ item.skill }}</strong>
+                            <template v-if="item.sets"> | {{ item.sets }}x </template>
+                            <template v-if="item.reps"> {{ item.reps }} reps</template>
+                            <template v-if="item.hold">, {{ item.hold }}s hold</template>
+                            <template v-if="item.weight">, {{ item.weight }}kg</template>
+                            <template v-if="item.distance">, {{ item.distance }} m</template>
+                            &nbsp;→&nbsp; +{{ item.exp }} XP
+                        </li>
+                    </ul>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+    <script>
+        const SKILL_DATA = [
+            // --- Calisthenic
+            { name: "Pull Up", code: "pull_up", baseExp: 7, tag: "Strength", group: "Calisthenic", params: { reps: true, sets: true, weight: true } },
+            { name: "Push Up", code: "push_up", baseExp: 4, tag: "Strength", group: "Calisthenic", params: { reps: true, sets: true, weight: true } },
+            { name: "Weighted Dip", code: "weighted_dips", baseExp: 8, tag: "Strength", group: "Calisthenic", params: { reps: true, sets: true, weight: true } },
+            { name: "Muscle Up", code: "muscle_up", baseExp: 20, tag: "Strength/Skill", group: "Calisthenic", params: { reps: true, sets: true } },
+            { name: "Front Lever Hold", code: "front_lever", baseExp: 25, tag: "Skill (Hold)", group: "Calisthenic", params: { hold: true, sets: true } },
+            { name: "Back Lever Hold", code: "back_lever", baseExp: 20, tag: "Skill (Hold)", group: "Calisthenic", params: { hold: true, sets: true } },
+            { name: "Planche Hold", code: "planche", baseExp: 30, tag: "Skill (Hold)", group: "Calisthenic", params: { hold: true, sets: true } },
+            { name: "Handstand Hold", code: "handstand", baseExp: 12, tag: "Skill (Hold)", group: "Calisthenic", params: { hold: true, sets: true } },
+            { name: "Handstand Push Up", code: "handstand_push_up", baseExp: 18, tag: "Strength/Balance", group: "Calisthenic", params: { reps: true, sets: true } },
+            { name: "One Arm Pull Up", code: "one_arm_pull_up", baseExp: 40, tag: "Strength Elite", group: "Calisthenic", params: { reps: true, sets: true } },
+            { name: "Pistol Squat", code: "pistol_squat", baseExp: 15, tag: "Legs", group: "Calisthenic", params: { reps: true, sets: true } },
+            { name: "Dragon Flag Hold", code: "dragon_flag", baseExp: 18, tag: "Core (Hold)", group: "Calisthenic", params: { hold: true, sets: true } },
+            { name: "L-Sit Hold", code: "l_sit", baseExp: 10, tag: "Core (Hold)", group: "Calisthenic", params: { hold: true, sets: true } },
+
+            // --- Gym
+            { name: "Dumbbell Curl", code: "db_curl", baseExp: 6, tag: "Arms", group: "Gym", params: { reps: true, sets: true, weight: true } },
+            { name: "Dumbbell Bench Press", code: "db_bench", baseExp: 8, tag: "Chest", group: "Gym", params: { reps: true, sets: true, weight: true } },
+            { name: "Dumbbell Incline Bench", code: "db_incline_bench", baseExp: 8, tag: "Chest/Upper", group: "Gym", params: { reps: true, sets: true, weight: true } },
+            { name: "Barbell Squat", code: "barbell_squat", baseExp: 11, tag: "Legs", group: "Gym", params: { reps: true, sets: true, weight: true } },
+            { name: "Barbell Deadlift", code: "deadlift", baseExp: 12, tag: "Full Body", group: "Gym", params: { reps: true, sets: true, weight: true } },
+
+            // --- Cardio
+            { name: "Running", code: "running", baseExp: 1, tag: "Cardio", group: "Cardio", params: { distance: true } },
+        ];
+
+        const GROUPS = ["Calisthenic", "Gym", "Cardio"];
+        const CHARACTER_TEMPLATE = {
+            name: '',
+            level: 1,
+            exp: 0,
+            expToNext: 100,
+            skills: []
+        };
+
+        const STORAGE_KEY_USER = 'calisthenic_username';
+        const STORAGE_KEY_PROGRESS = 'calisthenic_save';
+
+        const { createApp } = Vue;
+        createApp({
+            data() {
+                return {
+                    loginInput: "",
+                    loginWeight: 0,
+                    loginHeight: 0,
+                    loggedIn: false,
+                    character: { ...CHARACTER_TEMPLATE },
+                    input: this.defaultInput(),
+                    skillList: SKILL_DATA,
+                    log: '',
+                    image:'',
+                    history: [],
+                    groupList: GROUPS,
+                    selectedGroup: GROUPS[0],
+                    xpPerDayChart: null,
+                    expPerSkillChart: null,
+                    skillPieChart: null,
+                    personalBest: {},
+                    goals: [
+                        // Example: { skill: "pull_up", type: "reps", value: 20, reached: false }
+                    ],
+                    goalInput: { skill: '', type: 'reps', value: 0 }
+                }
+            },
+            computed: {
+                skillString() {
+                    return this.character.skills.length
+                        ? this.character.skills.map(s => s.name).join(', ')
+                        : 'None';
+                },
+                expBarStyle() {
+                    let pct = Math.min(100, (this.character.exp / this.character.expToNext) * 100);
+                    return `width:${pct}%; min-width:11px; transition:.5s`;
+                },
+                filteredSkills() {
+                    return this.skillList.filter(s => s.group === this.selectedGroup);
+                },
+                currentSkill() {
+                    return this.skillList.find(s => s.code === this.input.skill) || this.filteredSkills[0] || {};
+                }
+            },
+            created() {
+                const user = localStorage.getItem(STORAGE_KEY_USER);
+                if (user) {
+                    this.loginInput = user;
+                    this.autoLogin();
+                }
+                // set awal
+                this.selectedGroup = GROUPS[0];
+                this.input = this.defaultInput();
+            },
+            methods: {
+                changeImage(){
+                    let skill=SKILL_DATA.find(e=>e.code==this.input.skill)
+                    console.log(skill)
+                    this.image=''
+                },
+                login() {
+                    if (!this.loginInput.trim() || this.loginWeight < 25 || this.loginHeight < 90) {
+                        alert("Silakan isi semua data dengan benar.");
+                        return;
+                    }
+                    this.character.name = this.loginInput.trim();
+                    this.character.weight = this.loginWeight;
+                    this.character.height = this.loginHeight;
+
+                    const saveString = localStorage.getItem(STORAGE_KEY_PROGRESS + '_' + this.loginInput);
+                    if (saveString) {
+                        let save = JSON.parse(saveString);
+                        this.character = { ...save.character };
+                        // Overwrite dengan input login jika ada
+                        this.personalBest = save.personalBest || {};
+                        this.goals = save.goals || [];
+                        this.character.weight = this.loginWeight;
+                        this.character.height = this.loginHeight;
+                        this.history = save.history || [];
+                    } else {
+                        this.character = {
+                            ...CHARACTER_TEMPLATE,
+                            name: this.loginInput.trim(),
+                            weight: this.loginWeight,
+                            height: this.loginHeight
+                        };
+                        this.history = [];
+                    }
+                    this.selectedGroup = GROUPS[0];
+                    this.input = this.defaultInput();
+                    localStorage.setItem(STORAGE_KEY_USER, this.loginInput.trim());
+                    this.loggedIn = true;
+                },
+                autoLogin() { 
+                    this.loginWeight = this.character.weight || 60;
+                    this.loginHeight = this.character.height || 170;
+                    this.login();
+                },
+                logout() {
+                    this.loggedIn = false;
+                    this.loginInput = '';
+                    localStorage.removeItem(STORAGE_KEY_USER);
+                    if(this.xpPerDayChart) this.xpPerDayChart.destroy();
+                    if(this.expPerSkillChart) this.expPerSkillChart.destroy();
+                    if(this.skillPieChart) this.skillPieChart.destroy();
+                },
+                defaultInput() {
+                    const firstSkill = SKILL_DATA.find(s => s.group === GROUPS[0]);
+                    const defaults = {};
+                    if (firstSkill) {
+                        for (const param in firstSkill.params) {
+                            if (param === 'weight') defaults[param] = 0;
+                            else if (param === 'distance') defaults[param] = 1;
+                            else defaults[param] = 1;
+                        }
+                        return { 
+                            skill: firstSkill.code, 
+                            ...defaults,
+                            submitWeight: this.character && this.character.weight ? this.character.weight : 60,
+                            submitHeight: this.character && this.character.height ? this.character.height : 170
+                        };
+                    }
+                    return { skill: "", reps: 1, sets: 1, hold: 1, weight: 0, distance: 1,
+                        submitWeight: this.character && this.character.weight ? this.character.weight : 60,
+                        submitHeight: this.character && this.character.height ? this.character.height : 170
+                    };
+                },
+                resetInputParams() {
+                    const skill = this.currentSkill;
+                    const params = {};
+                    for (const p in (skill.params || {})) {
+                        if (p === 'weight') params[p] = 0;
+                        else if (p === 'distance') params[p] = 1;
+                        else params[p] = 1;
+                    }
+                    params.submitWeight = this.character.weight || 60;
+                    params.submitHeight = this.character.height || 170;
+                    this.input = { skill: skill.code, ...params };
+                },
+                calculateExp(skillCode, inParams) {
+                    const skill = this.skillList.find(s => s.code === skillCode);
+                    if (!skill) return 0;
+                    let exp = 0;
+                    let { reps, sets, hold, weight, distance } = inParams;
+                    reps = Number(reps) || 0; sets = Number(sets) || 0; hold = Number(hold) || 0; weight = Number(weight) || 0; distance = Number(distance) || 0;
+                    let multiplier = 1;
+
+                    // Ambil berat dan tinggi user
+                    const bb = Number(this.character.weight) || 60;  // Berat badan
+                    const tb = Number(this.character.height) || 170; // Tinggi badan dalam cm
+
+                    // Difficulty adjustment: (Normalisasi ke 60kg/170cm, makin berat/makin tinggi lebih susah untuk kebanyakan skill)
+                    let difficultFactor = 1;
+                    if (["Calisthenic", "Gym"].includes(skill.group)) {
+                        difficultFactor = 1 + Math.max(0, (bb - 60) * 0.007); // setiap 10kg lebih berat, +7% xp
+                        if (tb > 170) difficultFactor += (tb - 170) * 0.002; // setiap 10cm lebih tinggi +2% xp
+                    }
+                    if (["Cardio"].includes(skill.group)) {
+                        difficultFactor = 1 + Math.max(0, (bb - 60) * 0.002); // 10kg lebih berat, +2% xp untuk cardio
+                        if (tb > 170) difficultFactor -= Math.min(0.15, (tb - 170) * 0.001); // makin tinggi sedikit lebih mudah cardio
+                    }
+
+                    // Compound/advanced skill bonus
+                    if (["planche", "front_lever", "one_arm_pull_up"].includes(skillCode)) multiplier = 1.5;
+                    if (["muscle_up"].includes(skillCode)) multiplier = 1.4;
+                    if (["handstand", "dragon_flag"].includes(skillCode)) multiplier = 1.2;
+                    if (sets > 10) multiplier += 0.1;
+                    if (reps > 20) multiplier += 0.1;
+
+                    // Prevent abuse
+                    if (sets > 100 || reps > 100 || hold > 600 || distance > 60000) return 0;
+
+                    // Weighted logic
+                    if ('weight' in skill.params && weight > 0) {
+                        multiplier += Math.log10(weight + 1) * 0.37;
+                    }
+
+                    // For hold
+                    if ('hold' in skill.params) {
+                        exp = skill.baseExp * hold * sets * multiplier * difficultFactor * 0.18;
+                    }
+                    // For distance (running, cycling, dst)
+                    else if ('distance' in skill.params) {
+                        exp = Math.max(1, Math.floor(distance / 20) * skill.baseExp * difficultFactor);
+                    }
+                    // For reps/sets
+                    else if ('reps' in skill.params && 'sets' in skill.params) {
+                        exp = skill.baseExp * reps * sets * multiplier * difficultFactor * 0.15;
+                    }
+                    // Pure reps
+                    else if ('reps' in skill.params) {
+                        exp = skill.baseExp * reps * multiplier * difficultFactor * 0.15;
+                    }
+                    return Math.floor(exp);
+                },
+                logWorkout() {
+                    if(!confirm("Are you sure to submit this ?")){
+                        return
+                    }
+                    const inputCopy = JSON.parse(JSON.stringify(this.input));
+                    if (!this.currentSkill) {
+                        this.showLog("Invalid skill!");
+                        return;
+                    }
+                    // Check for minimal input based on required params
+                    let valid = true;
+                    for (let p in this.currentSkill.params) {
+                        if (
+                            (p === "weight" && (inputCopy[p] === null || inputCopy[p] === undefined || isNaN(Number(inputCopy[p])) || inputCopy[p] < 0)) ||
+                            (p === "distance" && (!inputCopy[p] || inputCopy[p] < 1)) ||
+                            (p !== "weight" && (!inputCopy[p] || isNaN(Number(inputCopy[p])) || inputCopy[p] < 1))
+                        ) { valid = false; break; }
+                    }
+                    if (!valid) {
+                        this.showLog("Lengkapi parameter dengan benar.");
+                        return;
+                    }
+                    const inputBB = Number(this.input.submitWeight);
+                    const inputTB = Number(this.input.submitHeight);
+                    if (
+                        inputBB >= 25 && inputBB <= 250 &&
+                        inputTB >= 90 && inputTB <= 230 &&
+                        (inputBB !== this.character.weight || inputTB !== this.character.height)
+                    ) {
+                        this.character.weight = inputBB;
+                        this.character.height = inputTB;
+                    }
+
+                    const exp = this.calculateExp(this.input.skill, inputCopy);
+                    if (exp === 0) {
+                        this.showLog("Input terlalu tinggi/skill tidak valid");
+                        return;
+                    }
+                    const skillObj = this.skillList.find(s => s.code === this.input.skill);
+                    // Tambahkan skill jika belum
+                    if (!this.character.skills.some(s => s.code === skillObj.code)) {
+                        this.character.skills.push(skillObj);
+                    }
+                    this.character.exp += exp;
+                    // History
+                    this.history.push({
+                        skill: skillObj.name,
+                        ...inputCopy,
+                        exp,
+                        timestamp: Date.now(),
+                        weightNow: this.character.weight,
+                        heightNow: this.character.height
+                    });
+
+                    let leveledUp = false;
+                    while (this.character.exp >= this.character.expToNext) {
+                        this.character.exp -= this.character.expToNext;
+                        this.character.level++;
+                        this.character.expToNext = Math.floor(this.character.expToNext * 1.27 + this.character.level * 7);
+                        leveledUp = true;
+                    }
+                    this.updatePersonalBest(skillObj, inputCopy);
+                    this.goals = save.goals || [];
+
+                    this.saveProgress();
+                    this.showLog(
+                        `+${exp} XP for ${skillObj.name}` +
+                        (leveledUp ? ` — Level UP! Now level ${this.character.level}!` : "")
+                    );
+                    this.resetInputParams();
+                    this.$nextTick(()=>this.renderCharts());
+                },
+                updatePersonalBest(skill, params) {
+                    const key = skill.code;
+                    if(!this.personalBest[key]) {
+                        // First entry, all set as PB
+                        this.personalBest[key] = { ...params, updated: Date.now() };
+                        return;
+                    }
+                    let isNewBest = false;
+                    if('reps' in params && params.reps > (this.personalBest[key].reps || 0)) { this.personalBest[key].reps = params.reps; isNewBest = true; }
+                    if('hold' in params && params.hold > (this.personalBest[key].hold || 0)) { this.personalBest[key].hold = params.hold; isNewBest = true; }
+                    if('weight' in params && params.weight > (this.personalBest[key].weight || 0)) { this.personalBest[key].weight = params.weight; isNewBest = true; }
+                    if('distance' in params && params.distance > (this.personalBest[key].distance || 0)) { this.personalBest[key].distance = params.distance; isNewBest = true; }
+                    if(isNewBest) this.personalBest[key].updated = Date.now();
+                },
+                addGoal() {
+                    if(!this.goalInput.skill || !this.goalInput.type || !this.goalInput.value) return;
+                    this.goals.push({ 
+                        skill: this.goalInput.skill, 
+                        type: this.goalInput.type, 
+                        value: this.goalInput.value, 
+                        reached: false 
+                    });
+                    this.goalInput = { skill: '', type: 'reps', value: 0 };
+                    this.saveProgress();
+                },
+                checkGoals() {
+                    let changed = false;
+                    for(const g of this.goals) {
+                        const pb = this.personalBest[g.skill];
+                        if(!pb) continue;
+                        // Check if pb achieves goal
+                        if(!g.reached && pb[g.type] && pb[g.type]>=g.value) {
+                            g.reached = true;
+                            changed = true;
+                            this.showLog(`Goal reached! ${this.skillList.find(x=>x.code===g.skill).name} ${g.type} ${g.value}`);
+                        }
+                    }
+                    if(changed) this.saveProgress();
+                },
+                saveProgress() {
+                    const saveObj = {
+                        character: this.character,
+                        history: this.history,
+                        personalBest: this.personalBest,
+                        goals: this.goals // goals ikut disimpan!
+                    };
+                    localStorage.setItem(STORAGE_KEY_PROGRESS + '_' + this.character.name, JSON.stringify(saveObj));
+                },
+                renderCharts() {
+                    this.renderXpPerDayChart();
+                    this.renderExpPerSkillChart();
+                    this.renderSkillPieChart();
+                    this.renderWeeklyChart();
+                    this.renderMonthlyChart();
+                },
+                renderXpPerDayChart() {
+                    // --- Group xp by date
+                    const xpPerDate = {};
+                    this.history.forEach(h => {
+                        const date = new Date(h.timestamp);
+                        const dateStr = `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2,'0')}-${date.getDate().toString().padStart(2,'0')}`;
+                        if (!xpPerDate[dateStr]) xpPerDate[dateStr] = 0;
+                        xpPerDate[dateStr] += h.exp;
+                    });
+                    const categories = Object.keys(xpPerDate).sort();
+                    const data = categories.map(d => xpPerDate[d]);
+                    // --- Render
+                    if (this.xpPerDayChart) this.xpPerDayChart.destroy();
+                    this.xpPerDayChart = new ApexCharts(document.querySelector("#xpPerDayChart"), {
+                        chart: { type: 'area', height: 180, toolbar: {show:false} },
+                        series: [{ name: 'EXP', data }],
+                        xaxis: { categories, title:{text:'Date'}, labels:{rotate:-45} },
+                        yaxis: { title:{text:'XP'}, min:0 },
+                        title: { text: 'XP Progress per Day', align:'center', style:{fontSize:'15px'} }
+                    });
+                    this.xpPerDayChart.render();
+                },
+                renderExpPerSkillChart() {
+                    // --- Total xp per skill name
+                    const expSkill = {};
+                    this.history.forEach(h => {
+                        if (!expSkill[h.skill]) expSkill[h.skill] = 0;
+                        expSkill[h.skill] += h.exp;
+                    });
+                    const skills = Object.keys(expSkill);
+                    const exp = skills.map(s => expSkill[s]);
+                    // --- Render
+                    if (this.expPerSkillChart) this.expPerSkillChart.destroy();
+                    this.expPerSkillChart = new ApexCharts(document.querySelector("#expPerSkillChart"), {
+                        chart: { type: 'bar', height: 200, toolbar:{show:false} },
+                        series: [{ name: 'EXP', data: exp }],
+                        xaxis: { categories: skills, title:{text:'Skill'}, labels:{rotate:-45} },
+                        yaxis: { title: {text:'EXP'}, min:0 },
+                        title: { text: 'Total EXP per Skill', align:'center', style:{fontSize:'15px'} }
+                    });
+                    this.expPerSkillChart.render();
+                },
+                renderSkillPieChart() {
+                    // Count workout per skill
+                    const skillCount = {};
+                    this.history.forEach(h => {
+                        if (!skillCount[h.skill]) skillCount[h.skill] = 0;
+                        skillCount[h.skill]++;
+                    });
+                    const skills = Object.keys(skillCount);
+                    const counts = skills.map(s => skillCount[s]);
+                    // --- Render
+                    if (this.skillPieChart) this.skillPieChart.destroy();
+                    this.skillPieChart = new ApexCharts(document.querySelector("#skillPieChart"), {
+                        chart: { type: 'donut', height: 210 },
+                        series: counts,
+                        labels: skills,
+                        legend: { position: 'bottom' },
+                        title: { text: 'Workout Count per Skill', align:'center', style:{fontSize:'15px'} }
+                    });
+                    this.skillPieChart.render();
+                },
+                renderWeeklyChart() {
+                    // Group xp by week (ISO week: Mon-Sun)
+                    const weekXp = {};
+                    this.history.forEach(h=>{
+                        const date = new Date(h.timestamp);
+                        // Get week number: YYYY-Www
+                        const year = date.getFullYear();
+                        const week = (d => {
+                            d = new Date(+d);
+                            d.setHours(0,0,0,0);
+                            d.setDate(d.getDate() + 4 - (d.getDay()||7));
+                            const yearStart = new Date(d.getFullYear(),0,1);
+                            return Math.ceil((((d - yearStart)/86400000)+1)/7);
+                        })(date);
+                        const label = `${year}-W${week.toString().padStart(2,'0')}`;
+                        if(!weekXp[label]) weekXp[label]=0;
+                        weekXp[label]+=h.exp;
+                    });
+                    const cat = Object.keys(weekXp).sort();
+                    const data = cat.map(k=>weekXp[k]);
+                    if(this.weeklyChart) this.weeklyChart.destroy();
+                    this.weeklyChart = new ApexCharts(document.querySelector("#weeklyChart"), {
+                        chart: { type: 'bar', height: 180 },
+                        series: [{ name:'XP', data }],
+                        xaxis: { categories: cat, title:{text:'Week'} },
+                        yaxis: { title:{text:'Total XP'} },
+                        title: { text:'Weekly Summary (XP)', align:'center', style:{fontSize:'15px'} }
+                    });
+                    this.weeklyChart.render();
+                },
+                renderMonthlyChart() {
+                    // Group xp by month
+                    const monthXp = {};
+                    this.history.forEach(h=>{
+                        const date = new Date(h.timestamp);
+                        const label = `${date.getFullYear()}-${(date.getMonth()+1).toString().padStart(2,'0')}`;
+                        if(!monthXp[label]) monthXp[label]=0;
+                        monthXp[label] += h.exp;
+                    });
+                    const cat = Object.keys(monthXp).sort();
+                    const data = cat.map(k=>monthXp[k]);
+                    if(this.monthlyChart) this.monthlyChart.destroy();
+                    this.monthlyChart = new ApexCharts(document.querySelector("#monthlyChart"), {
+                        chart:{type:'line', height:180},
+                        series:[{name:'XP', data}],
+                        xaxis:{categories:cat, title:{text:'Month'}},
+                        yaxis:{title:{text:'Total XP'}},
+                        title:{text:'Monthly Summary (XP)', align:'center', style:{fontSize:'15px'}}
+                    });
+                    this.monthlyChart.render();
+                },
+                exportToExcel() {
+                    if(!this.history.length) return;
+                    // Header
+                    const headers = ["Date", "Skill", "Sets", "Reps", "Hold(s)", "Weight(kg)", "Distance(m)", "EXP", "WeightNow", "HeightNow"];
+                    // Data rows
+                    const rows = this.history.map(item => [
+                        this.formatTime(item.timestamp),
+                        item.skill,
+                        item.sets ?? "",
+                        item.reps ?? "",
+                        item.hold ?? "",
+                        item.weight ?? "",
+                        item.distance ?? "",
+                        item.exp ?? "",
+                        item.weightNow ?? this.character.weight,
+                        item.heightNow ?? this.character.height
+                    ]);
+                    // Gabungkan
+                    let csvContent = [headers, ...rows]
+                        .map(e => e.map(x => `"${x}"`).join(","))
+                        .join("\n");
+                    // Buat blob download
+                    const blob = new Blob([csvContent], { type: "text/csv" });
+                    const url = URL.createObjectURL(blob);
+                    // Trigger download
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.download = `calisthenic_history_${this.character.name || 'export'}.csv`;
+                    document.body.appendChild(link);
+                    link.click();
+                    setTimeout(() => {
+                    URL.revokeObjectURL(url); 
+                    document.body.removeChild(link); 
+                    }, 100);
+                },
+                showLog(msg) {
+                    this.log = msg;
+                    setTimeout(() => { this.log = ""; }, 2550);
+                },
+                formatTime(ts) {
+                    let d = new Date(ts),
+                        h = d.getHours().toString().padStart(2, "0"),
+                        m = d.getMinutes().toString().padStart(2, "0");
+                    return `${d.getMonth() + 1}/${d.getDate()} ${h}:${m}`;
+                }
+            },
+            mounted() {
+                setTimeout(() => {
+                    this.renderCharts()
+                }, 3000);
+            },
+            watch: {
+                'input.skill'(v) {
+                this.resetInputParams();
+                },
+                selectedGroup(g) {
+                // ganti skill setiap user pilih group baru
+                    const first = this.filteredSkills[0];
+                    if (first) {
+                        const params = {};
+                        for (const p in first.params) {
+                        if(p==='weight') params[p]=0;
+                        else if (p==='distance') params[p]=1;
+                        else params[p]=1;
+                        }
+                        this.input = { skill: first.code, ...params };
+                    }
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+
+</html>
