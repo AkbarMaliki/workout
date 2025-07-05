@@ -9,7 +9,6 @@
   <link rel="stylesheet" href="./style.css">
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-  <!-- localForage -->
   <script src="https://cdn.rawgit.com/mozilla/localForage/master/dist/localforage.js"></script>
   <style>
     .goal-passed { color: #2ba921; font-weight: bold; }
@@ -68,9 +67,23 @@
         <div class="bar-bg" style="max-width:350px;margin:6px 0;">
           <div class="bar" :style="barStyle"></div>
         </div>
+        <div v-if="incomeList.length || expenseList.length" style="margin-top:12px;">
+          <b>Proyeksi Saldo Pada Tanggal Goal:</b>
+          <span :style="{color: isOnProjectionGoal ? '#2ba921':'#e03a3a', fontWeight:'bold'}">
+            Rp {{ currency(projectedAtGoal) }}
+            <template v-if="isOnProjectionGoal">✔️</template>
+            <template v-else>❌ (Kurang Rp {{ currency(user.goal - projectedAtGoal) }})</template>
+          </span>
+          <div style="font-size:13px;color:#888;">
+            (saldo sekarang + (pemasukan bulanan - pengeluaran bulanan) × sisa bulan ke goal)
+          </div>
+        </div>
       </div>
 
+      <!-- INPUT INCOME EXPENSE BULANAN -->
+      
       <hr>
+
       <form @submit.prevent="addTransaksi">
         <select v-model="transaksiInput.type" required>
           <option value="out">Pengeluaran</option>
@@ -95,7 +108,35 @@
         </div>
       </div>
       <hr>
-
+      <div class="row mb-3" style="margin-top:2em;">
+        <div class="col-sm-12">
+            <h3>Pengaturan Cashflow Bulanan</h3>
+        </div>
+        <div class="col-sm-6">
+            <div>
+              <h5>Pemasukan Tetap</h5>
+              <div v-for="(inc, i) in incomeList" :key="'inc-'+i" style="margin-bottom:4px;">
+                <input class="rounded-lg shadow p-2" v-model="inc.label" placeholder="Sumber (misal: Gaji)">
+                <input class="rounded-lg shadow p-2" type="number" min="0" v-model.number="inc.amount" placeholder="Nominal" style="width:100px">
+                <button @click="incomeList.splice(i,1)" class="btn btn-sm btn-danger ml-2">Hapus</button>
+              </div>
+              <button @click="incomeList.push({label:'',amount:0})" type="button" class="btn btn-sm btn-success">+ Tambah Pemasukan</button>
+            </div>
+        </div>
+        
+        <div class="col-sm-6">
+            <div style="margin-top:1.5em;">
+              <h5>Pengeluaran Tetap</h5>
+              <div v-for="(exp, i) in expenseList" :key="'exp-'+i" style="margin-bottom:4px;">
+                <input class="rounded-lg shadow p-2" v-model="exp.label" placeholder="Pengeluaran (misal: Sewa)">
+                <input class="rounded-lg shadow p-2" type="number" min="0" v-model.number="exp.amount" placeholder="Nominal" style="width:100px">
+                <button @click="expenseList.splice(i,1)" class="btn btn-sm btn-danger ml-2">Hapus</button>
+              </div>
+              <button @click="expenseList.push({label:'',amount:0})" type="button" class="btn btn-sm btn-dark">+ Tambah Pengeluaran</button>
+            </div>
+        </div>
+      </div>
+      <hr>
       <div class="history-box" v-if="transaksiList.length">
         <h4>Riwayat Transaksi Terakhir</h4>
         <ul class="history-list">
@@ -113,7 +154,13 @@
   </div>
 </div>
 
-<script>
+<script type="module">
+import "https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js";
+import  'https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js';
+let data = await fetch('./loading.js').then(res=>res.text());
+const firebaseConfig = JSON.parse(data);
+const app=firebase.initializeApp(firebaseConfig)
+const db = app.firestore();
 Vue.createApp({
   data(){
     return {
@@ -127,94 +174,121 @@ Vue.createApp({
       transaksiInput: { type:'out', nominal:'', ket:'', tgl:this.todayStr() },
       saldoPerDayChart:null,
       pieChart:null,
+      incomeList: [],
+      expenseList: [],
     }
   },
   computed:{
     percentDiffFromTrack() {
-        if (!this.user.goalDate) return 0;
-        const ideal = this.trackerShould;
-        // Hindari pembagian dengan 0
-        if (!ideal || ideal === 0) return 0;
-        // Selalu bandingkan ke target progres ideal
-        return Math.round((this.user.saldo - ideal) / ideal * 100);
+      if (!this.user.goalDate) return 0;
+      const ideal = this.trackerShould;
+      if (!ideal || ideal === 0) return 0;
+      return Math.round((this.user.saldo - ideal) / ideal * 100);
     },
     pctToGoal(){
-      if(!this.user.goal) return 0
-      return Math.min(100, Math.floor(this.user.saldo/this.user.goal*100))
+      if(!this.user.goal) return 0;
+      return Math.min(100, Math.floor(this.user.saldo/this.user.goal*100));
     },
     barStyle(){
-      let w = Math.min(100, this.user.goal ? (this.user.saldo/this.user.goal*100) : 0)
-      return `width:${w}%;min-width:10px;background:${this.user.saldo>=this.user.goal?'#2ba921':'#FFB300'}`
+      let w = Math.min(100, this.user.goal ? (this.user.saldo/this.user.goal*100) : 0);
+      return `width:${w}%;min-width:10px;background:${this.user.saldo>=this.user.goal?'#2ba921':'#FFB300'}`;
     },
     goalReached(){
-      return this.user.saldo >= this.user.goal
+      return this.user.saldo >= this.user.goal;
     },
     progressClass(){
-      if(this.user.saldo>=this.user.goal) return "goal-passed"
-      if(this.onTrack) return "goal-ontrack"
-      return "goal-lost"
+      if(this.user.saldo>=this.user.goal) return "goal-passed";
+      if(this.onTrack) return "goal-ontrack";
+      return "goal-lost";
     },
     trackerShould(){
-      if(!this.user.goalDate) return 0
+      if(!this.user.goalDate) return 0;
       const startDate = this.firstTransDate,
             now = new Date(),
-            goalDate = new Date(this.user.goalDate)
-      if(now > goalDate) return this.user.goal
-      const totalDay = (goalDate - startDate) / 86400000
-      const passedDay = (now - startDate) / 86400000
-      if(totalDay<=0) return this.user.goal
-      let target = Math.floor(this.user.saldoAwal + (passedDay/totalDay)*(this.user.goal-this.user.saldoAwal))
-      if(target < this.user.saldoAwal) target = this.user.saldoAwal
-      if(target > this.user.goal) target = this.user.goal
-      return target
+            goalDate = new Date(this.user.goalDate);
+      if(now > goalDate) return this.user.goal;
+      const totalDay = (goalDate - startDate) / 86400000;
+      const passedDay = (now - startDate) / 86400000;
+      if(totalDay<=0) return this.user.goal;
+      let target = Math.floor(this.user.saldoAwal + (passedDay/totalDay)*(this.user.goal-this.user.saldoAwal));
+      if(target < this.user.saldoAwal) target = this.user.saldoAwal;
+      if(target > this.user.goal) target = this.user.goal;
+      return target;
     },
     onTrack(){
-      if(!this.user.goalDate) return false
-      return this.user.saldo >= this.trackerShould && !this.overshoot
+      if(!this.user.goalDate) return false;
+      return this.user.saldo >= this.trackerShould && !this.overshoot;
     },
     overshoot() {
-      if(!this.user.goalDate) return false
-      return this.user.saldo > this.user.goal && new Date() < new Date(this.user.goalDate)
+      if(!this.user.goalDate) return false;
+      return this.user.saldo > this.user.goal && new Date() < new Date(this.user.goalDate);
     },
     firstTransDate(){
-      if(this.transaksiList.length) return new Date(this.transaksiList[0].tgl)
-      return new Date(this.user.loginDate)
-    }
+      if(this.transaksiList.length) return new Date(this.transaksiList[0].tgl);
+      return new Date(this.user.loginDate);
+    },
+    // <--- Tambahan untuk proyeksi per bulan
+    netMonthly() {
+      let totalIncome = this.incomeList.reduce((sum, inc) => sum + (Number(inc.amount) || 0), 0);
+      let totalExpense = this.expenseList.reduce((sum, exp) => sum + (Number(exp.amount) || 0), 0);
+      return totalIncome - totalExpense;
+    },
+    monthsToGoal() {
+      if(!this.user.goalDate) return 0;
+      const d1 = new Date();
+      const d2 = new Date(this.user.goalDate);
+      let months = (d2.getFullYear() - d1.getFullYear()) * 12 + (d2.getMonth() - d1.getMonth());
+      if (d2.getDate() > d1.getDate()) months += 1;
+      return Math.max(1, months);
+    },
+    projectedAtGoal() {
+      return this.user.saldo + (this.netMonthly * this.monthsToGoal);
+    },
+    isOnProjectionGoal() {
+      return this.projectedAtGoal >= this.user.goal;
+    },
   },
   methods:{
     async login(){
       if(!this.loginInput.trim() || this.saldoInput<0 || this.goalInput<=0 || !this.goalDateInput){
-        alert("Isi nama, saldo, goal, dan tanggal target dengan benar")
-        return
+        alert("Isi nama, saldo, goal, dan tanggal target dengan benar");
+        return;
       }
-      let stored = await localforage.getItem('cashflow_'+this.loginInput.trim())
+      let doc = await db.collection('cashflow').doc('cashflow_'+this.loginInput.trim()).get();
+      let stored = doc.exists ? doc.data() : null;
       if(stored && stored.user){
-        this.user = stored.user
-        this.transaksiList = stored.transaksiList || []
+        this.user = stored.user;
+        this.transaksiList = stored.transaksiList || [];
+        this.incomeList = stored.incomeList || [];
+        this.expenseList = stored.expenseList || [];
       }else{
         this.user = {
           name: this.loginInput.trim(),
           saldo: Number(this.saldoInput),
+          saldoAwal: Number(this.saldoInput),
           goal: Number(this.goalInput),
           goalDate: this.goalDateInput,
-          saldoAwal: Number(this.saldoInput),
           loginDate: this.todayStr()
-        }
-        this.transaksiList = []
-        await this.save()
+        };
+        this.transaksiList = [];
+        this.incomeList = [];
+        this.expenseList = [];
+        await this.save();
       }
-      this.loggedIn = true
-      setTimeout(()=>this.renderCharts(),800)
+      this.loggedIn = true;
+      setTimeout(()=>this.renderCharts(),800);
       await localforage.setItem('cashflow_lastuser', this.user.name);
     },
     async logout(){
-      this.loggedIn=false
-      this.loginInput=''
-      this.saldoInput=0
-      this.goalInput=0
-      this.goalDateInput=""
-      if(this.saldoPerDayChart) this.saldoPerDayChart.destroy()
-      if(this.pieChart) this.pieChart.destroy()
+      this.loggedIn=false;
+      this.loginInput='';
+      this.saldoInput=0;
+      this.goalInput=0;
+      this.goalDateInput="";
+      this.incomeList = [];
+      this.expenseList = [];
+      if(this.saldoPerDayChart) this.saldoPerDayChart.destroy();
+      if(this.pieChart) this.pieChart.destroy();
     },
     getTransPercentDiff(tr){
         if (!this.user.goalDate) return 0;
@@ -227,7 +301,6 @@ Vue.createApp({
             ? Math.floor(this.user.saldoAwal + (passedDay/totalDay)*(this.user.goal-this.user.saldoAwal))
             : this.user.goal;
         if (!ideal) return 0;
-        // Hitung saldo setelah transaksi ini
         let saldo = this.user.saldoAwal;
         let sorted = this.transaksiList.slice().sort((a,b)=>(a.tgl||"")>(b.tgl||"")?1:-1);
         for(const t of sorted){
@@ -237,44 +310,54 @@ Vue.createApp({
         return Math.round((saldo - ideal)/ ideal * 100);
     },
     async save(){
-        let userClean = JSON.parse(JSON.stringify(this.user))
-        let transaksiListClean = this.transaksiList ? JSON.parse(JSON.stringify(this.transaksiList)) : []
-        await localforage.setItem('cashflow_'+userClean.name, {
-            user: userClean,
-            transaksiList: transaksiListClean
-        })
+      let userClean = JSON.parse(JSON.stringify(this.user));
+      let transaksiListClean = this.transaksiList ? JSON.parse(JSON.stringify(this.transaksiList)) : [];
+      let incomeListClean = this.incomeList ? JSON.parse(JSON.stringify(this.incomeList)) : [];
+      let expenseListClean = this.expenseList ? JSON.parse(JSON.stringify(this.expenseList)) : [];
+      await localforage.setItem('cashflow_'+userClean.name, {
+        user: userClean,
+        transaksiList: transaksiListClean,
+        incomeList: incomeListClean,
+        expenseList: expenseListClean,
+      });
+      await db.collection('cashflow').doc('cashflow_'+userClean.name).set({
+        user: userClean,
+        transaksiList: transaksiListClean,
+        incomeList: incomeListClean,
+        expenseList: expenseListClean,
+      });
     },
     async addTransaksi(){
       if(!this.transaksiInput.type || !this.transaksiInput.nominal || !this.transaksiInput.tgl)
-        return
+        return;
       if(!confirm("Submit ?")){
-        return
+        return;
       }
-      const nominal = Number(this.transaksiInput.nominal)
-      if(this.transaksiInput.type==='in') this.user.saldo += nominal
-      else this.user.saldo -= nominal
+      const nominal = Number(this.transaksiInput.nominal);
+      if(this.transaksiInput.type==='in') this.user.saldo += nominal;
+      else this.user.saldo -= nominal;
       this.transaksiList.push({
         ...this.transaksiInput,
         nominal,
         ts: Date.now()
-      })
-      await this.save()
-      this.transaksiInput = { type:'out', nominal:'', ket:'', tgl:this.todayStr() }
-      this.$nextTick(()=>this.renderCharts())
+      });
+      await this.save();
+      this.transaksiInput = { type:'out', nominal:'', ket:'', tgl:this.todayStr() };
+      this.$nextTick(()=>this.renderCharts());
     },
     renderCharts(){
-      const saldoMap = {}, pieMap = { in:0, out:0 }
-      let saldo = this.user.saldoAwal || 0
+      const saldoMap = {}, pieMap = { in:0, out:0 };
+      let saldo = this.user.saldoAwal || 0;
       let sortedTrans = this.transaksiList
         .slice()
-        .sort((a,b)=>(a.tgl||"")>(b.tgl||"")?1:-1)
+        .sort((a,b)=>(a.tgl||"")>(b.tgl||"")?1:-1);
       sortedTrans.forEach(tr=>{
-        let tgl = tr.tgl || this.formatTgl(null,tr.ts)
-        if(!(tgl in saldoMap)) saldoMap[tgl]=saldo
+        let tgl = tr.tgl || this.formatTgl(null,tr.ts);
+        if(!(tgl in saldoMap)) saldoMap[tgl]=saldo;
         if(tr.type==='in'){ saldo += tr.nominal; pieMap.in += tr.nominal }
         else { saldo -= tr.nominal; pieMap.out += tr.nominal }
-        saldoMap[tgl]=saldo
-      })
+        saldoMap[tgl]=saldo;
+      });
       if(this.saldoPerDayChart) this.saldoPerDayChart.destroy()
       this.saldoPerDayChart = new ApexCharts(document.querySelector("#saldoPerDayChart"),{
         chart:{type:'area',height:180,toolbar:{show:false}},
@@ -282,40 +365,40 @@ Vue.createApp({
         xaxis:{categories:Object.keys(saldoMap), title:{text:'Tgl'}},
         yaxis:{title:{text:'Saldo'}},
         title:{text:'Saldo Per Hari',align:'center', style:{fontSize:'15px'}}
-      }); this.saldoPerDayChart.render()
+      }); this.saldoPerDayChart.render();
       if(this.pieChart) this.pieChart.destroy()
       this.pieChart = new ApexCharts(document.querySelector("#pieChart"),{
         chart:{type:'donut',height:180},
         series:[pieMap.in, pieMap.out],
         labels:['Pemasukan','Pengeluaran'],
         title:{text:'Komposisi Cashflow', align:'center', style:{fontSize:'15px'}}
-      }); this.pieChart.render()
+      }); this.pieChart.render();
     },
     async exportToExcel(){
       let header = [
         "Tanggal","Tipe","Nominal","Keterangan","Saldo Setelah","Status Progress"
-      ], data = []
-      let saldo = this.user.saldoAwal || 0
+      ], data = [];
+      let saldo = this.user.saldoAwal || 0;
       let sortedTrans = this.transaksiList.slice().sort((a,b)=>(a.tgl||"")>(b.tgl||"")?1:-1)
       for(const t of sortedTrans){
         if(t.type === 'in') saldo += t.nominal
         else saldo -= t.nominal
         let ideal = this.user.goalDate
           ? Math.floor(this.user.saldoAwal + ( (new Date(t.tgl)-this.firstTransDate)/(new Date(this.user.goalDate)-this.firstTransDate)  * (this.user.goal-this.user.saldoAwal)))
-          : null
-        let status = (saldo >= this.user.goal) ? "Goal Tercapai" : (ideal && saldo >= ideal) ? "On Track" : "Belum On Track"
+          : null;
+        let status = (saldo >= this.user.goal) ? "Goal Tercapai" : (ideal && saldo >= ideal) ? "On Track" : "Belum On Track";
         data.push([
           t.tgl, t.type === 'in' ? 'Pemasukan' : 'Pengeluaran', t.nominal||0, t.ket||'', saldo, status
-        ])
+        ]);
       }
-      let ws = XLSX.utils.aoa_to_sheet([header,...data])
-      let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"RiwayatCashflow")
-      XLSX.writeFile(wb,`cashflow_${this.user.name}_${this.todayStr()}.xlsx`)
+      let ws = XLSX.utils.aoa_to_sheet([header,...data]);
+      let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"RiwayatCashflow");
+      XLSX.writeFile(wb,`cashflow_${this.user.name}_${this.todayStr()}.xlsx`);
     },
     formatTgl(date, ts){
-      if(date) return date.replace(/^\d{4}-/g,'')
-      const d=new Date(ts)
-      return `${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')}`
+      if(date) return date.replace(/^\d{4}-/g,'');
+      const d=new Date(ts);
+      return `${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')}`;
     },
     todayStr(){ let d=new Date(); return `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}` },
     currency(n){ return (n||0).toLocaleString("id-ID") },
@@ -324,19 +407,31 @@ Vue.createApp({
       let d = dstr.split('-'); return d[2]+"/"+d[1]+"/"+d[0]
     }
   },
+  watch: {
+    incomeList: {
+      handler() { this.save(); },
+      deep: true
+    },
+    expenseList: {
+      handler() { this.save(); },
+      deep: true
+    }
+  },
   async mounted() {
-  // Cek user terakhir
-  let last = await localforage.getItem('cashflow_lastuser');
-  if(last){
-    let stored = await localforage.getItem('cashflow_' + last);
-    if(stored && stored.user){
-      this.user = stored.user;
-      this.transaksiList = stored.transaksiList || [];
-      this.loggedIn = true;
-      setTimeout(()=>this.renderCharts(), 800);
+    let last = await localforage.getItem('cashflow_lastuser');
+    if(last){
+      let doc = await db.collection('cashflow').doc('cashflow_'+last).get();
+      let stored = doc.exists ? doc.data() : null;
+      if(stored && stored.user){
+        this.user = stored.user;
+        this.transaksiList = stored.transaksiList || [];
+        this.incomeList = stored.incomeList || [];
+        this.expenseList = stored.expenseList || [];
+        this.loggedIn = true;
+        setTimeout(()=>this.renderCharts(), 800);
+      }
     }
   }
-}
 }).mount('#app')
 </script>
 </body>

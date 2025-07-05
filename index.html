@@ -15,7 +15,9 @@
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-  <script src="https://cdn.rawgit.com/mozilla/localForage/master/dist/localforage.js"></script>
+    <script src="https://cdn.rawgit.com/mozilla/localForage/master/dist/localforage.js"></script>
+    <script src="https://unpkg.com/vue-select@3.0.0"></script>
+    <link rel="stylesheet" href="https://unpkg.com/vue-select@3.0.0/dist/vue-select.css">
   
 
     <div id="app">
@@ -35,110 +37,121 @@
                 <br>
                 <h1>Workout Progression Tracker</h1>
                 <br>
-                <div v-if="showPersonalBestPanel" >
-                    <div class="rounded-lg shadow p-3 bg-white animate__animated animate__bounceIn">
-                        <div class="floating-panel-header">
-                            <strong>🏆 Personal Best</strong>
-                            <button @click="showPersonalBestPanel=false" class="float-right">✕</button>
-                        </div>
-                        <ul style="padding-left: 12px; font-size: 15px; max-height:420px; overflow-y:auto;">
-                            <li v-for="skill in character.skills" :key="skill.code">
-                            <strong>{{ skill.name }}</strong>:
-                            <template v-if="personalBest[skill.code]">
-                                <span v-if="personalBest[skill.code].reps"> {{ personalBest[skill.code].reps }} reps, </span>
-                                <span v-if="personalBest[skill.code].hold"> {{ personalBest[skill.code].hold }}s hold, </span>
-                                <span v-if="personalBest[skill.code].weight && personalBest[skill.code].weight>0"> {{ personalBest[skill.code].weight }}kg, </span>
-                                <span v-if="personalBest[skill.code].distance"> {{ personalBest[skill.code].distance }}m, </span>
-                                <span style="color:#aaa;">{{ formatTime(personalBest[skill.code].updated) }}</span>
-                            </template>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-        
-                <div v-if="showGoalPanel" >
-                    <div class="rounded-lg shadow p-3 bg-white animate__animated animate__bounceIn">
-                        <div class="floating-panel-header">
-                            <strong>🎯 Goals & Milestones</strong>
-                            <button @click="showGoalPanel=false" class="float-right">✕</button>
-                        </div>
-                        <form @submit.prevent="addGoal" style="margin-bottom:7px;">
-                            <select v-model="goalInput.skill" required>
-                                <option v-for="skill in skillList" :value="skill.code">{{skill.name}}</option>
-                            </select>
-                            <select v-model="goalInput.type" required>
-                                <option value="reps">Reps</option>
-                                <option value="hold">Hold(s)</option>
-                                <option value="weight">Weight(kg)</option>
-                                <option value="distance">Distance(m)</option>
-                            </select>
-                            <input v-model.number="goalInput.value" type="number" min="1" style="width:66px;">
-                            <button type="submit">Add</button>
-                        </form>
-                        <ul style="font-size:15px; padding-left:15px; max-height:420px; overflow-y:auto;">
-                            <li v-for="g in goals"
-                                :style="[g.reached ? {'color':'#2ba921','font-weight':'bold','text-decoration':'line-through'} : {}]">
-                            {{ skillList.find(s=>s.code===g.skill)?.name || g.skill }} – {{ g.type }} {{g.value}}
-                            <span v-if="g.reached">✔️</span>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
-                
-                <div v-if="showCalendar">
-                    <div style="border-radius:0.5rem; box-shadow:0 4px 24px 0 rgba(39,53,94,0.13), 0 0 1px #bbb; padding:1rem 1.05rem 0.78rem 1.05rem; background:#fff; animation-duration:1s; animation-fill-mode:both;">
-                        <!-- Calendar View: start -->
-                        <div style="" v-if="loggedIn">
-                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-                                <h4 style="margin:0;">📅 Workout Calendar</h4>
-                                <button @click="showCalendar=false" style="background:none;border:none;font-size:17px;cursor:pointer;color:#a33;margin-left:8px;">✕</button>
-                            </div>
-                            <div 
-                                style="max-width: 365px; margin-bottom:10px;"
-                            >
-                                <div 
-                                    style="display: flex; font-weight: bold;"
-                                >
-                                    <span
-                                        v-for="w in ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']"
-                                        style="text-align: center; width: 36px; height: 36px; line-height: 36px; border: 1px solid #f0f0f0; font-size: 15px; display:inline-block;"
-                                    >{{ w }}</span>
+                <!-- MODAL -->
+                <div v-if="showPersonalBestPanel" style="position: fixed;top: 50%;left: 50%;transform: translateX(-50%) translateY(-50%);z-index:105;min-width:100vw;">
+                    <div class="row justify-content-center">
+                        <div class="col-sm-5">
+                            <div class="rounded-lg shadow p-3 bg-white animate__animated animate__bounceIn">
+                                <div class="floating-panel-header">
+                                    <strong>🏆 Personal Best</strong>
+                                    <button @click="showPersonalBestPanel=false" class="float-right">✕</button>
                                 </div>
-                                <div
-                                    v-for="row in calendarRows"
-                                    style="display: flex;"
-                                >
-                                    <span
-                                        v-for="day in row"
-                                        @click="showDayWorkouts(day)"
-                                        :style="{
-                                            position: 'relative',
-                                            background: isToday(day.date) ? '#e7faed' : day.hasWorkout ? '#c5e8ff' : '#fff',
-                                            textAlign: 'center',
-                                            width: '36px',
-                                            height: '36px',
-                                            lineHeight: '36px',
-                                            border: '1px solid #f0f0f0',
-                                            fontSize: '15px',
-                                            cursor: 'pointer',
-                                            display: 'inline-block',
-                                        }"
+                                <ul style="padding-left: 12px; font-size: 15px; max-height:420px; overflow-y:auto;">
+                                    <li v-for="skill in character.skills" :key="skill.code">
+                                    <strong>{{ skill.name }}</strong>:
+                                    <template v-if="personalBest[skill.code]">
+                                        <span v-if="personalBest[skill.code].reps"> {{ personalBest[skill.code].reps }} reps, </span>
+                                        <span v-if="personalBest[skill.code].hold"> {{ personalBest[skill.code].hold }}s hold, </span>
+                                        <span v-if="personalBest[skill.code].weight && personalBest[skill.code].weight>0"> {{ personalBest[skill.code].weight }}kg, </span>
+                                        <span v-if="personalBest[skill.code].distance"> {{ personalBest[skill.code].distance }}m, </span>
+                                        <span style="color:#aaa;">{{ formatTime(personalBest[skill.code].updated) }}</span>
+                                    </template>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div v-if="showGoalPanel" style="position: fixed;top: 50%;left: 50%;transform: translateX(-50%) translateY(-50%);z-index:105;min-width:100vw;">
+                    <div class="row justify-content-center">
+                        <div class="col-sm-5">
+                            <div class="rounded-lg shadow p-3 bg-white animate__animated animate__bounceIn">
+                                <div class="floating-panel-header">
+                                    <strong>🎯 Goals & Milestones</strong>
+                                    <button @click="showGoalPanel=false" class="float-right">✕</button>
+                                </div>
+                                <form @submit.prevent="addGoal" style="margin-bottom:7px;">
+                                    <select v-model="goalInput.skill" required>
+                                        <option v-for="skill in skillList" :value="skill.code">{{skill.name}}</option>
+                                    </select>
+                                    <select v-model="goalInput.type" required>
+                                        <option value="reps">Reps</option>
+                                        <option value="hold">Hold(s)</option>
+                                        <option value="weight">Weight(kg)</option>
+                                        <option value="distance">Distance(m)</option>
+                                    </select>
+                                    <input v-model.number="goalInput.value" type="number" min="1" style="width:66px;">
+                                    <button type="submit">Add</button>
+                                </form>
+                                <ul style="font-size:15px; padding-left:15px; max-height:420px; overflow-y:auto;">
+                                    <li v-for="g in goals"
+                                        :style="[g.reached ? {'color':'#2ba921','font-weight':'bold','text-decoration':'line-through'} : {}]">
+                                    {{ skillList.find(s=>s.code===g.skill)?.name || g.skill }} – {{ g.type }} {{g.value}}
+                                    <span v-if="g.reached">✔️</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div v-if="showCalendar" style="position: fixed;top: 50%;left: 50%;transform: translateX(-50%) translateY(-50%);z-index:105;min-width:100vw;">
+                    <div class="row justify-content-center">
+                        <div class="col-sm-5">
+                            <div style="border-radius:0.5rem; box-shadow:0 4px 24px 0 rgba(39,53,94,0.13), 0 0 1px #bbb; padding:1rem 1.05rem 0.78rem 1.05rem; background:#fff; animation-duration:1s; animation-fill-mode:both;">
+                                <!-- Calendar View: start -->
+                                <div style="" v-if="loggedIn">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                                        <h4 style="margin:0;">📅 Workout Calendar</h4>
+                                        <button @click="showCalendar=false" style="background:none;border:none;font-size:17px;cursor:pointer;color:#a33;margin-left:8px;">✕</button>
+                                    </div>
+                                    <div 
+                                        style="max-width: 365px; margin-bottom:10px;"
                                     >
-                                        <span v-if="day.date">{{ day.num }}</span>
-                                        <span
-                                            v-if="day.hasWorkout"
-                                            style="display:block;position:absolute;bottom:5px;left:50%;transform:translateX(-50%);width:7px;height:7px;border-radius:50%;background:#4285f4;"
-                                        ></span>
-                                    </span>
+                                        <div 
+                                            style="display: flex; font-weight: bold;"
+                                        >
+                                            <span
+                                                v-for="w in ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']"
+                                                style="text-align: center; width: 36px; height: 36px; line-height: 36px; border: 1px solid #f0f0f0; font-size: 15px; display:inline-block;"
+                                            >{{ w }}</span>
+                                        </div>
+                                        <div
+                                            v-for="row in calendarRows"
+                                            style="display: flex;"
+                                        >
+                                            <span
+                                                v-for="day in row"
+                                                @click="showDayWorkouts(day)"
+                                                :style="{
+                                                    position: 'relative',
+                                                    background: isToday(day.date) ? '#e7faed' : day.hasWorkout ? '#c5e8ff' : '#fff',
+                                                    textAlign: 'center',
+                                                    width: '36px',
+                                                    height: '36px',
+                                                    lineHeight: '36px',
+                                                    border: '1px solid #f0f0f0',
+                                                    fontSize: '15px',
+                                                    cursor: 'pointer',
+                                                    display: 'inline-block',
+                                                }"
+                                            >
+                                                <span v-if="day.date">{{ day.num }}</span>
+                                                <span
+                                                    v-if="day.hasWorkout"
+                                                    style="display:block;position:absolute;bottom:5px;left:50%;transform:translateX(-50%);width:7px;height:7px;border-radius:50%;background:#4285f4;"
+                                                ></span>
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <div style="margin-bottom:4px;">
+                                        <button class="btn btn-sm btn-primary mr-2 ml-2" @click="goPrevMonth">&lt;</button>
+                                        <strong>{{ (new Date(calendarYear, calendarMonth)).toLocaleString('default',{month:'long',year:'numeric'}) }}</strong>
+                                        <button class="btn btn-sm btn-primary mr-2 ml-2" @click="goNextMonth">&gt;</button>
+                                    </div>
                                 </div>
-                            </div>
-                            <div style="margin-bottom:4px;">
-                                <button class="btn btn-sm btn-primary mr-2 ml-2" @click="goPrevMonth">&lt;</button>
-                                <strong>{{ (new Date(calendarYear, calendarMonth)).toLocaleString('default',{month:'long',year:'numeric'}) }}</strong>
-                                <button class="btn btn-sm btn-primary mr-2 ml-2" @click="goNextMonth">&gt;</button>
+                                <!-- Calendar View: end -->
                             </div>
                         </div>
-                        <!-- Calendar View: end -->
                     </div>
                 </div>
 
@@ -162,6 +175,11 @@
                                         <span style="margin-right:10px">💨 END: {{ character.stats.endurance }}</span>
                                         <span style="margin-right:10px">🤸‍♂️ AGI: {{ character.stats.agility }}</span>
                                         <span>❤️ VIT: {{ character.stats.vitality }}</span>
+                                    </div>
+                                    <div class="stat-box-musclegroup" style="margin:10px 0;">
+                                        <span v-for="(count, muscle) in muscleStats" :key="muscle" style="margin-right:12px;">
+                                            <b>{{ muscle }}</b>: {{ count }}x
+                                        </span>
                                     </div>
                                     <hr>
                                     <div class="progress-txt"><strong>EXP:</strong> {{ character.exp }} / {{ character.expToNext }}
@@ -282,11 +300,67 @@
                         </div>
 
                         <div class="col-sm-4">
-                            <br/>
                             <hr/>
                             <button style="width:100%;" type="submit">Submit Workout</button>
                             <hr/>
-                            <img :src="image" alt="">
+                            <div class="stopwatch-card" style="margin:18px 0;">
+                                <div style="display: flex; flex-direction: column; align-items: center;">
+                                  <div style="
+                                    font-family: 'Digital-7', 'Consolas', 'Monaco', monospace;
+                                    font-size: 3em;
+                                    letter-spacing: 0.08em;
+                                    background: #191d24;
+                                    color: #18ff32;
+                                    border-radius: 10px;
+                                    padding: 15px 34px 10px 34px;
+                                    box-shadow: 0 3px 13px #0003, 0 1px 0 #3336;
+                                    border: 2px solid #0a1;
+                                    margin-bottom: 15px;
+                                    min-width: 200px;
+                                    text-shadow: 0 0 7px #0faf27, 0 0 1px #fff;
+                                    ">
+                                    {{ stopwatchDisplay }}
+                                  </div>
+                                  <div style="margin-top:8px; display: flex; gap: 13px;">
+                                    <button @click="startStopwatch" :disabled="stopwatchRunning" style="
+                                      padding:5px 18px;
+                                      font-family:'Consolas',monospace;
+                                      background:#204fff;
+                                      color:white;
+                                      border-radius:6px;
+                                      border:0;
+                                      font-size:1.01em;
+                                      box-shadow:0 1px 0 #2249;
+                                    ">
+                                      Start
+                                    </button>
+                                    <button @click="stopStopwatch" :disabled="!stopwatchRunning" style="
+                                      padding:5px 18px;
+                                      font-family:'Consolas',monospace;
+                                      background:#e84820;
+                                      color:white;
+                                      border-radius:6px;
+                                      border:0;
+                                      font-size:1.01em;
+                                      box-shadow:0 1px 0 #9249;
+                                    ">
+                                      Stop
+                                    </button>
+                                    <button @click="resetStopwatch" :disabled="stopwatchDisplay==='00:00.0' && !stopwatchRunning" style="
+                                      padding:5px 17px;
+                                      font-family:'Consolas',monospace;
+                                      background:#393e46;
+                                      color:#fff;
+                                      border-radius:6px;
+                                      border:0;
+                                      font-size:1.01em;
+                                      box-shadow:0 1px 0 #8885;
+                                    ">
+                                      Reset
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
 
                         </div>
                     </div>
@@ -309,6 +383,9 @@
                         <div class="col-sm-6">
                             <div id="monthlyChart"></div>
                         </div>
+                        <div class="col-sm-6">
+                            <div id="musclePieChart"></div>
+                        </div>
                     </div>
                 </div>
                 <hr>
@@ -319,6 +396,8 @@
                     <h4 style="margin-bottom:4px;">Workouts on {{ modalDateReadable }}</h4>
                     <ul v-if="modalDayWorkouts.length">
                         <li v-for="workout in modalDayWorkouts">
+                        <strong>{{ workout.skill }}</strong>  
+                        <small v-if="workout.muscle" style="color:#888;">({{ workout.muscle }})</small>
                         <strong>{{ workout.skill }}</strong> 
                         <template v-if="workout.sets">| {{ workout.sets }}x </template>
                         <template v-if="workout.reps"> {{ workout.reps }} reps</template>
@@ -341,15 +420,19 @@
                             <button @click="exportToExcel" style="margin-top:12px;width:170px;">Export to Excel</button>
                             <ul class="history-list">
                                 <li v-for="item in history.slice(-6).reverse()">
+                                    
                                     [{{ formatTime(item.timestamp) }}] <strong>{{ item.skill }}</strong>
                                     <template v-if="item.sets"> | {{ item.sets }}x </template>
                                     <template v-if="item.reps"> {{ item.reps }} reps</template>
                                     <template v-if="item.hold">, {{ item.hold }}s hold</template>
                                     <template v-if="item.weight">, {{ item.weight }}kg</template>
                                     <template v-if="item.distance">, {{ item.distance }} m</template>
-                                    &nbsp;→&nbsp; +{{ item.exp }} XP
+                                    &nbsp;→&nbsp; +{{ item.exp }} XP &nbsp;&nbsp;
+                                    <small v-if="item.muscle" style="color:#666;">({{ item.muscle }})</small>
+                                    
                                 </li>
                             </ul>
+                            
                         </div>
                     </div>
                     <div class="col-sm-12">
@@ -379,6 +462,7 @@
                         </div>
                     </div>
                     <div class="col-sm-6">
+                        
                         <div v-if="calorieLog.length" class="calorie-log-section">
                             <h5 style="margin:7px 0 0 0;"><b>Daftar Kalori Makanan Hari Ini</b></h5>
                             <ul style="font-size:14px; list-style: disc; margin: 3px 0 0 14px;">
@@ -402,32 +486,69 @@
         
 
     </div>
-    <script>
+    <script type="module">
+        import "https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js";
+        import  'https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js';
+        let data = await fetch('./loading.js').then(res=>res.text());
+        const firebaseConfig = JSON.parse(data);
+        const app=firebase.initializeApp(firebaseConfig)
+        const db = app.firestore();
         const SKILL_DATA = [
             // --- Calisthenic
-            { name: "Pull Up", code: "pull_up", baseExp: 7, tag: "Strength", group: "Calisthenic", params: { reps: true, sets: true, weight: true } },
-            { name: "Push Up", code: "push_up", baseExp: 4, tag: "Strength", group: "Calisthenic", params: { reps: true, sets: true, weight: true } },
-            { name: "Weighted Dip", code: "weighted_dips", baseExp: 8, tag: "Strength", group: "Calisthenic", params: { reps: true, sets: true, weight: true } },
-            { name: "Muscle Up", code: "muscle_up", baseExp: 20, tag: "Strength/Skill", group: "Calisthenic", params: { reps: true, sets: true } },
-            { name: "Front Lever Hold", code: "front_lever", baseExp: 25, tag: "Skill (Hold)", group: "Calisthenic", params: { hold: true, sets: true } },
-            { name: "Back Lever Hold", code: "back_lever", baseExp: 20, tag: "Skill (Hold)", group: "Calisthenic", params: { hold: true, sets: true } },
-            { name: "Planche Hold", code: "planche", baseExp: 30, tag: "Skill (Hold)", group: "Calisthenic", params: { hold: true, sets: true } },
-            { name: "Handstand Hold", code: "handstand", baseExp: 12, tag: "Skill (Hold)", group: "Calisthenic", params: { hold: true, sets: true } },
-            { name: "Handstand Push Up", code: "handstand_push_up", baseExp: 18, tag: "Strength/Balance", group: "Calisthenic", params: { reps: true, sets: true } },
-            { name: "One Arm Pull Up", code: "one_arm_pull_up", baseExp: 40, tag: "Strength Elite", group: "Calisthenic", params: { reps: true, sets: true } },
-            { name: "Pistol Squat", code: "pistol_squat", baseExp: 15, tag: "Legs", group: "Calisthenic", params: { reps: true, sets: true } },
-            { name: "Dragon Flag Hold", code: "dragon_flag", baseExp: 18, tag: "Core (Hold)", group: "Calisthenic", params: { hold: true, sets: true } },
-            { name: "L-Sit Hold", code: "l_sit", baseExp: 10, tag: "Core (Hold)", group: "Calisthenic", params: { hold: true, sets: true } },
+            { name: "Pull Up", code: "pull_up", baseExp: 7, tag: "Strength", group: "Calisthenic", params: { reps: true, sets: true, weight: true }, muscle: "Back/Biceps" },
+            { name: "Chin Up", code: "chin_up", baseExp: 7, tag: "Strength", group: "Calisthenic", params: { reps: true, sets: true, weight: true }, muscle: "Back/Biceps" },
+            { name: "Push Up", code: "push_up", baseExp: 4, tag: "Strength", group: "Calisthenic", params: { reps: true, sets: true, weight: true }, muscle: "Chest/Triceps/Shoulders" },
+            { name: "Diamond Push Up", code: "diamond_push_up", baseExp: 6, tag: "Arms", group: "Calisthenic", params: { reps: true, sets: true }, muscle: "Triceps/Chest" },
+            { name: "Decline Push Up", code: "decline_push_up", baseExp: 5, tag: "Upper Chest", group: "Calisthenic", params: { reps: true, sets: true }, muscle: "Chest/Shoulders" },
+            { name: "Dips", code: "dips", baseExp: 6, tag: "Strength", group: "Calisthenic", params: { reps: true, sets: true }, muscle: "Chest/Triceps/Shoulders" },
+            { name: "Weighted Dip", code: "weighted_dips", baseExp: 8, tag: "Strength", group: "Calisthenic", params: { reps: true, sets: true, weight: true }, muscle: "Chest/Triceps/Shoulders" },
+            { name: "Bodyweight Row", code: "bodyweight_row", baseExp: 5, tag: "Back", group: "Calisthenic", params: { reps: true, sets: true }, muscle: "Back/Biceps" },
+            { name: "Australian Pull Up", code: "australian_pull_up", baseExp: 5, tag: "Back", group: "Calisthenic", params: { reps: true, sets: true }, muscle: "Back/Biceps" },
+            { name: "Leg Raise", code: "leg_raise", baseExp: 5, tag: "Core", group: "Calisthenic", params: { reps: true, sets: true }, muscle: "Core/Hip Flexors" },
+            { name: "Hanging Knee Raise", code: "knee_raise", baseExp: 5, tag: "Core", group: "Calisthenic", params: { reps: true, sets: true }, muscle: "Core/Hip Flexors" },
+            { name: "Muscle Up", code: "muscle_up", baseExp: 20, tag: "Strength/Skill", group: "Calisthenic", params: { reps: true, sets: true }, muscle: "Back/Chest/Biceps/Shoulders" },
+            { name: "Front Lever Hold", code: "front_lever", baseExp: 25, tag: "Skill (Hold)", group: "Calisthenic", params: { hold: true, sets: true }, muscle: "Back/Core" },
+            { name: "Back Lever Hold", code: "back_lever", baseExp: 20, tag: "Skill (Hold)", group: "Calisthenic", params: { hold: true, sets: true }, muscle: "Back/Shoulders/Core" },
+            { name: "Planche Hold", code: "planche", baseExp: 30, tag: "Skill (Hold)", group: "Calisthenic", params: { hold: true, sets: true }, muscle: "Shoulders/Core/Chest" },
+            { name: "Handstand Hold", code: "handstand", baseExp: 12, tag: "Skill (Hold)", group: "Calisthenic", params: { hold: true, sets: true }, muscle: "Shoulders/Core" },
+            { name: "Handstand Push Up", code: "handstand_push_up", baseExp: 18, tag: "Strength/Balance", group: "Calisthenic", params: { reps: true, sets: true }, muscle: "Shoulders/Triceps" },
+            { name: "Pistol Squat", code: "pistol_squat", baseExp: 15, tag: "Legs", group: "Calisthenic", params: { reps: true, sets: true }, muscle: "Legs/Glutes/Core" },
+            { name: "Dragon Flag Hold", code: "dragon_flag", baseExp: 18, tag: "Core (Hold)", group: "Calisthenic", params: { hold: true, sets: true }, muscle: "Core/Hip Flexors" },
+            { name: "L-Sit Hold", code: "l_sit", baseExp: 10, tag: "Core (Hold)", group: "Calisthenic", params: { hold: true, sets: true }, muscle: "Core/Hip Flexors/Shoulders" },
+            // Leg calisthenics
+            { name: "Squat", code: "squat", baseExp: 7, tag: "Legs", group: "Calisthenic", params: { reps: true, sets: true }, muscle: "Legs/Glutes" },
+            { name: "Jump Squat", code: "jump_squat", baseExp: 8, tag: "Legs/Explosive", group: "Calisthenic", params: { reps: true, sets: true }, muscle: "Legs/Glutes/Calves" },
+            { name: "Bulgarian Split Squat", code: "bulgarian_split_squat", baseExp: 10, tag: "Legs", group: "Calisthenic", params: { reps: true, sets: true }, muscle: "Legs/Glutes/Core" },
 
             // --- Gym
-            { name: "Dumbbell Curl", code: "db_curl", baseExp: 6, tag: "Arms", group: "Gym", params: { reps: true, sets: true, weight: true } },
-            { name: "Dumbbell Bench Press", code: "db_bench", baseExp: 8, tag: "Chest", group: "Gym", params: { reps: true, sets: true, weight: true } },
-            { name: "Dumbbell Incline Bench", code: "db_incline_bench", baseExp: 8, tag: "Chest/Upper", group: "Gym", params: { reps: true, sets: true, weight: true } },
-            { name: "Barbell Squat", code: "barbell_squat", baseExp: 11, tag: "Legs", group: "Gym", params: { reps: true, sets: true, weight: true } },
-            { name: "Barbell Deadlift", code: "deadlift", baseExp: 12, tag: "Full Body", group: "Gym", params: { reps: true, sets: true, weight: true } },
+            { name: "Lat Pulldown", code: "lat_pulldown", baseExp: 7, tag: "Back", group: "Gym", params: { reps: true, sets: true, weight: true }, muscle: "Back/Biceps" },
+            { name: "Seated Row", code: "seated_row", baseExp: 7, tag: "Back", group: "Gym", params: { reps: true, sets: true, weight: true }, muscle: "Back/Biceps" },
+            { name: "Chest Press Machine", code: "chest_press", baseExp: 7, tag: "Chest", group: "Gym", params: { reps: true, sets: true, weight: true }, muscle: "Chest/Triceps/Shoulders" },
+            { name: "Shoulder Press", code: "shoulder_press", baseExp: 8, tag: "Shoulders", group: "Gym", params: { reps: true, sets: true, weight: true }, muscle: "Shoulders/Triceps" },
+            { name: "Dumbbell Curl", code: "db_curl", baseExp: 6, tag: "Arms", group: "Gym", params: { reps: true, sets: true, weight: true }, muscle: "Biceps" },
+            { name: "Triceps Pushdown", code: "triceps_pushdown", baseExp: 7, tag: "Arms", group: "Gym", params: { reps: true, sets: true, weight: true }, muscle: "Triceps" },
+            { name: "Dumbbell Bench Press", code: "db_bench", baseExp: 8, tag: "Chest", group: "Gym", params: { reps: true, sets: true, weight: true }, muscle: "Chest/Triceps/Shoulders" },
+            { name: "Barbell Bench Press", code: "barbell_bench", baseExp: 9, tag: "Chest", group: "Gym", params: { reps: true, sets: true, weight: true }, muscle: "Chest/Triceps/Shoulders" },
+            { name: "Incline Dumbbell Press", code: "incline_db_press", baseExp: 8, tag: "Chest/Upper", group: "Gym", params: { reps: true, sets: true, weight: true }, muscle: "Upper Chest/Shoulders/Triceps" },
+            { name: "Dumbbell Incline Bench", code: "db_incline_bench", baseExp: 8, tag: "Chest/Upper", group: "Gym", params: { reps: true, sets: true, weight: true }, muscle: "Upper Chest/Shoulders/Triceps" },
+            { name: "Barbell Squat", code: "barbell_squat", baseExp: 11, tag: "Legs", group: "Gym", params: { reps: true, sets: true, weight: true }, muscle: "Legs/Glutes/Core" },
+            { name: "Hack Squat Machine", code: "hack_squat", baseExp: 10, tag: "Legs", group: "Gym", params: { reps: true, sets: true, weight: true }, muscle: "Legs/Glutes" },
+            { name: "Leg Press", code: "leg_press", baseExp: 10, tag: "Legs", group: "Gym", params: { reps: true, sets: true, weight: true }, muscle: "Legs/Glutes" },
+            { name: "Leg Extension", code: "leg_extension", baseExp: 7, tag: "Legs", group: "Gym", params: { reps: true, sets: true, weight: true }, muscle: "Quads" },
+            { name: "Leg Curl", code: "leg_curl", baseExp: 7, tag: "Legs", group: "Gym", params: { reps: true, sets: true, weight: true }, muscle: "Hamstring" },
+            { name: "Standing Calf Raise", code: "calf_raise", baseExp: 6, tag: "Legs", group: "Gym", params: { reps: true, sets: true, weight: true }, muscle: "Calves" },
+            { name: "Barbell Deadlift", code: "deadlift", baseExp: 12, tag: "Full Body", group: "Gym", params: { reps: true, sets: true, weight: true }, muscle: "Back/Legs/Glutes/Forearms" },
+            { name: "Romanian Deadlift", code: "romanian_deadlift", baseExp: 10, tag: "Legs/Hamstring", group: "Gym", params: { reps: true, sets: true, weight: true }, muscle: "Hamstring/Back/Glutes" },
+            { name: "Cable Crunch", code: "cable_crunch", baseExp: 7, tag: "Core", group: "Gym", params: { reps: true, sets: true, weight: true }, muscle: "Core" },
+            { name: "Ab Wheel Rollout", code: "ab_wheel", baseExp: 8, tag: "Core", group: "Gym", params: { reps: true, sets: true }, muscle: "Core" },
 
-            // --- Cardio
-            { name: "Running", code: "running", baseExp: 1, tag: "Cardio", group: "Cardio", params: { distance: true } },
+            // --- Cardio/populer
+            { name: "Running", code: "running", baseExp: 1, tag: "Cardio", group: "Cardio", params: { distance: true }, muscle: "Legs/Core" },
+            { name: "Cycling", code: "cycling", baseExp: 1, tag: "Cardio", group: "Cardio", params: { distance: true }, muscle: "Legs" },
+            { name: "Treadmill", code: "treadmill", baseExp: 1, tag: "Cardio", group: "Cardio", params: { distance: true }, muscle: "Legs" },
+            { name: "Rowing Machine", code: "rowing_machine", baseExp: 2, tag: "Cardio/Back", group: "Cardio", params: { distance: true }, muscle: "Back/Legs/Cardio" },
+            { name: "Jump Rope", code: "jump_rope", baseExp: 2, tag: "Cardio", group: "Cardio", params: { hold: true, sets: true }, muscle: "Legs/Shoulders/Cardio" },
+            { name: "Stair Master", code: "stair_master", baseExp: 2, tag: "Cardio/Legs", group: "Cardio", params: { distance: true }, muscle: "Legs/Glutes" },
         ];
 
         const GROUPS = ["Calisthenic", "Gym", "Cardio"];
@@ -497,6 +618,10 @@
                     showGoalPanel: false,
                     showPersonalBestPanel: false,
                     showCalendar:false,
+
+                    stopwatch: 0, // dalam ms
+                    stopwatchTimer: null,
+                    stopwatchRunning: false,
                 }
             },
             computed: {
@@ -522,6 +647,34 @@
                         return `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
                     }));
                 },
+                stopwatchDisplay() {
+                    const ms = this.stopwatch % 1000;
+                    const sec = Math.floor(this.stopwatch / 1000) % 60;
+                    const min = Math.floor(this.stopwatch / (1000 * 60));
+                    return (
+                        min.toString().padStart(2, "0") +
+                        ":" +
+                        sec.toString().padStart(2, "0") +
+                        "." +
+                        Math.floor(ms / 100)
+                    );
+                },
+                muscleStats() {
+                    // Map muscle group → total latihan (jumlah entry history yang menargetkan group tsb)
+                    const stats = {};
+                    this.history.forEach(h => {
+                        const skill = this.skillList.find(s => s.name === h.skill || s.code === h.skill);
+                        if (!skill || !skill.muscle) return;
+                        // Mendukung skill.multi-muscle (pakai / atau array)
+                        let muscles = skill.muscle.split('/').map(m => m.trim());
+                        muscles.forEach(ms => {
+                            if (!stats[ms]) stats[ms] = 0;
+                            stats[ms]++;
+                        });
+                    });
+                    return stats;
+                },
+              
             },
             async created() {
                 const user = await localforage.getItem(STORAGE_KEY_USER);
@@ -548,19 +701,17 @@
                     this.character.weight = this.loginWeight;
                     this.character.height = this.loginHeight;
 
-                    const saveString = await localforage.getItem(STORAGE_KEY_PROGRESS + '_' + this.loginInput);
-                    console.log(saveString)
-                    if (saveString) {
-                        let save = JSON.parse(saveString);
-                        this.character = { ...save.character };
+                    // Ganti ambil localforage dengan firestore
+                    const userDoc = await db.collection('progress').doc(STORAGE_KEY_PROGRESS + '_' + this.character.name).get();
+                    if(userDoc.exists) {
+                        let save = userDoc.data();
+                        this.character = save.character || { ...CHARACTER_TEMPLATE, name: this.loginInput.trim(), weight: this.loginWeight, height: this.loginHeight };
                         this.personalBest = save.personalBest || {};
                         this.goals = save.goals || [];
                         this.history = save.history || [];
-                        this.loginWeight = this.character.weight;
-                        this.loginHeight = this.character.height;
-                        const clogs = await localforage.getItem("calorie_log_" + this.loginInput.trim());
-                        this.calorieLog = clogs ? JSON.parse(clogs) : [];
+                        // calorieLog dsb jika ingin
                     } else {
+                        // First-time user
                         this.character = {
                             ...CHARACTER_TEMPLATE,
                             name: this.loginInput.trim(),
@@ -571,7 +722,7 @@
                     }
                     this.selectedGroup = GROUPS[0];
                     this.input = this.defaultInput();
-                    await localforage.setItem(STORAGE_KEY_USER, this.loginInput.trim());
+                    // Set logged in
                     this.loggedIn = true;
                 },
                 async autoLogin() { 
@@ -725,6 +876,7 @@
                     // History
                     this.history.push({
                         skill: skillObj.name,
+                        muscle: skillObj.muscle,
                         ...inputCopy,
                         exp,
                         timestamp: Date.now(),
@@ -843,6 +995,7 @@
                         goals: this.goals 
                     };
                     await localforage.setItem(STORAGE_KEY_PROGRESS + '_' + this.character.name, JSON.stringify(saveObj));
+                    await db.collection('progress').doc(STORAGE_KEY_PROGRESS + '_' + this.character.name).set(saveObj);
                 },
                 renderCharts() {
                     this.renderXpPerDayChart();
@@ -850,6 +1003,19 @@
                     this.renderSkillPieChart();
                     this.renderWeeklyChart();
                     this.renderMonthlyChart();
+                    this.renderMusclePieChart()
+                },
+                renderMusclePieChart() {
+                    const labels = Object.keys(this.muscleStats);
+                    const data = labels.map(k => this.muscleStats[k]);
+                    if (this.musclePieChart) this.musclePieChart.destroy();
+                    this.musclePieChart = new ApexCharts(document.querySelector("#musclePieChart"), {
+                        chart: { type: 'pie', height: 220 },
+                        series: data,
+                        labels: labels,
+                        title: { text: 'Hit Statistik by Muscle Group', align: 'center', style: { fontSize: '15px' } }
+                    });
+                    this.musclePieChart.render();
                 },
                 renderXpPerDayChart() {
                     // --- Group xp by date
@@ -1118,6 +1284,25 @@
                         h = d.getHours().toString().padStart(2, "0"),
                         m = d.getMinutes().toString().padStart(2, "0");
                     return `${d.getMonth() + 1}/${d.getDate()} ${h}:${m}`;
+                },
+                startStopwatch() {
+                    if (this.stopwatchRunning) return;
+                    this.stopwatchRunning = true;
+                    let lastTime = performance.now();
+                    this.stopwatchTimer = setInterval(() => {
+                        let now = performance.now();
+                        this.stopwatch += now - lastTime;
+                        lastTime = now;
+                    }, 100);
+                    },
+                    stopStopwatch() {
+                    this.stopwatchRunning = false;
+                    if (this.stopwatchTimer) clearInterval(this.stopwatchTimer);
+                    this.stopwatchTimer = null;
+                    },
+                resetStopwatch() {
+                    this.stopStopwatch();
+                    this.stopwatch = 0;
                 }
             },
             mounted() {
@@ -1125,6 +1310,9 @@
                     this.renderCharts()
                     this.buildCalendarRows(); // initialize calendar
                 }, 2000);
+            },
+            components:{
+              vSelect:VueSelect.VueSelect, // taruh di components
             },
             watch: {
                 'input.skill'(v) {
