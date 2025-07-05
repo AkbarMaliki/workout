@@ -85,25 +85,50 @@
                     </div>
                 </div>
                 
-                <div v-if="showCalendar" >
-                    <div class="rounded-lg shadow p-3 bg-white animate__animated animate__bounceIn">
-                         <!-- Calendar View: start -->
-                         <div class="calendar-section" v-if="loggedIn">
-                            <div class="floating-panel-header">
-                                <h4>📅 Workout Calendar</h4>
-                                <button @click="showCalendar=false" class="float-right">✕</button>
+                <div v-if="showCalendar">
+                    <div style="border-radius:0.5rem; box-shadow:0 4px 24px 0 rgba(39,53,94,0.13), 0 0 1px #bbb; padding:1rem 1.05rem 0.78rem 1.05rem; background:#fff; animation-duration:1s; animation-fill-mode:both;">
+                        <!-- Calendar View: start -->
+                        <div style="" v-if="loggedIn">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                                <h4 style="margin:0;">📅 Workout Calendar</h4>
+                                <button @click="showCalendar=false" style="background:none;border:none;font-size:17px;cursor:pointer;color:#a33;margin-left:8px;">✕</button>
                             </div>
-                            <div class="calendar">
-                                <div class="calendar-row calendar-header">
-                                    <span v-for="w in ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']" class="calendar-header-cell">{{ w }}</span>
+                            <div 
+                                style="max-width: 365px; margin-bottom:10px;"
+                            >
+                                <div 
+                                    style="display: flex; font-weight: bold;"
+                                >
+                                    <span
+                                        v-for="w in ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']"
+                                        style="text-align: center; width: 36px; height: 36px; line-height: 36px; border: 1px solid #f0f0f0; font-size: 15px; display:inline-block;"
+                                    >{{ w }}</span>
                                 </div>
-                                <div v-for="row in calendarRows" class="calendar-row">
-                                    <span v-for="day in row" 
-                                        class="calendar-cell cursor-pointer" 
-                                        :class="{ today: isToday(day.date), active: day.hasWorkout }"
-                                        @click="showDayWorkouts(day)">
-                                    <span v-if="day.date">{{ day.num }}</span>
-                                    <span v-if="day.hasWorkout" class="calendar-dot"></span>
+                                <div
+                                    v-for="row in calendarRows"
+                                    style="display: flex;"
+                                >
+                                    <span
+                                        v-for="day in row"
+                                        @click="showDayWorkouts(day)"
+                                        :style="{
+                                            position: 'relative',
+                                            background: isToday(day.date) ? '#e7faed' : day.hasWorkout ? '#c5e8ff' : '#fff',
+                                            textAlign: 'center',
+                                            width: '36px',
+                                            height: '36px',
+                                            lineHeight: '36px',
+                                            border: '1px solid #f0f0f0',
+                                            fontSize: '15px',
+                                            cursor: 'pointer',
+                                            display: 'inline-block',
+                                        }"
+                                    >
+                                        <span v-if="day.date">{{ day.num }}</span>
+                                        <span
+                                            v-if="day.hasWorkout"
+                                            style="display:block;position:absolute;bottom:5px;left:50%;transform:translateX(-50%);width:7px;height:7px;border-radius:50%;background:#4285f4;"
+                                        ></span>
                                     </span>
                                 </div>
                             </div>
@@ -111,7 +136,7 @@
                                 <button class="btn btn-sm btn-primary mr-2 ml-2" @click="goPrevMonth">&lt;</button>
                                 <strong>{{ (new Date(calendarYear, calendarMonth)).toLocaleString('default',{month:'long',year:'numeric'}) }}</strong>
                                 <button class="btn btn-sm btn-primary mr-2 ml-2" @click="goNextMonth">&gt;</button>
-                              </div>
+                            </div>
                         </div>
                         <!-- Calendar View: end -->
                     </div>
