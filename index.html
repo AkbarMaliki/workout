@@ -39,7 +39,7 @@
                     <div class="rounded-lg shadow p-3 bg-white animate__animated animate__bounceIn">
                         <div class="floating-panel-header">
                             <strong>🏆 Personal Best</strong>
-                            <button @click="showPersonalBestPanel=false" class="panel-close-btn">✕</button>
+                            <button @click="showPersonalBestPanel=false" class="float-right">✕</button>
                         </div>
                         <ul style="padding-left: 12px; font-size: 15px; max-height:420px; overflow-y:auto;">
                             <li v-for="skill in character.skills" :key="skill.code">
@@ -60,7 +60,7 @@
                     <div class="rounded-lg shadow p-3 bg-white animate__animated animate__bounceIn">
                         <div class="floating-panel-header">
                             <strong>🎯 Goals & Milestones</strong>
-                            <button @click="showGoalPanel=false" class="panel-close-btn">✕</button>
+                            <button @click="showGoalPanel=false" class="float-right">✕</button>
                         </div>
                         <form @submit.prevent="addGoal" style="margin-bottom:7px;">
                             <select v-model="goalInput.skill" required>
@@ -91,7 +91,7 @@
                          <div class="calendar-section" v-if="loggedIn">
                             <div class="floating-panel-header">
                                 <h4>📅 Workout Calendar</h4>
-                                <button @click="showCalendar=false" class="panel-close-btn">✕</button>
+                                <button @click="showCalendar=false" class="float-right">✕</button>
                             </div>
                             <div class="calendar">
                                 <div class="calendar-row calendar-header">
