@@ -184,3 +184,78 @@ form button[type=submit] {
     width: 92px;
 }
 
+
+.calendar { max-width: 365px; margin-bottom:10px; }
+.calendar-row { display: flex; }
+.calendar-header { font-weight: bold; }
+.calendar-header-cell, .calendar-cell {
+    text-align: center;
+    width: 36px;
+    height: 36px;
+    line-height: 36px;
+    border: 1px solid #f0f0f0;
+    font-size: 15px;
+}
+.calendar-cell { position: relative; background: #fff;}
+.calendar-cell.today { background: #e7faed; }
+.calendar-cell.active { background: #c5e8ff; }
+.calendar-dot {
+    display:block; position:absolute; bottom:5px; left:50%; transform:translateX(-50%);
+    width:7px; height:7px; border-radius:50%; background:#4285f4;
+}
+
+.modal-bg {
+    position: fixed; top:0; left:0; width:100vw; height:100vh; z-index:8888;
+    background: rgba(0,0,0,0.18);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .modal-inner {
+    background: #fff; padding: 18px 24px; border-radius: 7px; min-width: 260px;
+    box-shadow: 0 2px 16px rgba(0,0,0,.14);
+  }
+
+  .calories-section {
+    padding:14px 8px 8px 8px; 
+    background: #fafcff; 
+    border:1px solid #e3e9f1; 
+    border-radius:8px; 
+    margin-bottom: 16px;
+    max-width: 450px;
+}
+.floating-panel {
+    position: fixed;
+    top: 48px;
+    right: 48px;
+    width: 260px;
+    background: #fff;
+    box-shadow: 0 4px 24px 0 rgba(39,53,94,0.13), 0 0 1px #bbb;
+    border-radius: 12px;
+    z-index: 999;
+    padding: 18px 17px 14px 17px;
+    transition: all .23s;
+  }
+  .floating-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .panel-close-btn {
+    background: none;
+    border: none;
+    font-size: 17px;
+    cursor: pointer;
+    color: #a33;
+    margin-left:8px;
+  }
+  .floating-panel ul { margin: 0; }
+
+  .modal-back{
+    position:fixed;width:100vw;height:100vh;left:0;top:0;z-index:100;
+  }
+  .modal-screen{
+    position: fixed;top: 0%;left: 50%;transform: translateX(0%) translateY(10%);z-index:105;min-width:50vw;
+  }
+  .modal-screen-full{
+    position: fixed;top: 50%;left: 50%;transform: translateX(-50%) translateY(-50%);z-index:105;min-width:50vw;
+  }

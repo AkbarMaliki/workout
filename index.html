@@ -15,6 +15,9 @@
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script src="https://cdn.rawgit.com/mozilla/localForage/master/dist/localforage.js"></script>
+  
+
     <div id="app">
         <div v-if="!loggedIn" class="login-container">
             <h2>Welcome to Workout Progression</h2>
@@ -24,37 +27,51 @@
             <p>Tinggi Badan (cm)</p>
             <input placeholder="Tinggi badan (cm)" type="number" min="90" max="230" v-model.number="loginHeight" style="margin-bottom:18px;">
             <button @click="login">Login</button>
-        </div>
-
+        </div>        
         <div v-else class=" row justify-content-center">
             <div class="col-10 bg-white sm:p-5 shadow rounded-lg">
                 <button class="logout-btn" @click="logout">Logout</button>
+                <br>
                 <h1>Workout Progression Tracker</h1>
                 <div class="status-card">
                     <div class="row">
-                        <div class="col-sm-3">
-                            <div class="avatar-shadow" title="Your Avatar">
+                        <div class="col-sm-3 d-flex align-items-center justify-content-center">
+                            <div class="avatar-shadow" title="Your Avatar" style="margin:0 auto;">
                                 <img src="./gym.jpeg"
-                                    alt="Character" width="75" style="display:block;">
+                                    alt="Character" width="75" style="display:block; margin: 0 auto;">
                             </div>
                         </div>
                         <div class="col-sm-9">
                             <div class="row">
-                                <div class="col-6">
+                                <div class="col-sm-6">
                                     <p><strong>Name:</strong> {{ character.name }}</p>
                                     <p><strong>Level:</strong> {{ character.level }}</p>
                                     <p><strong>BB/TB:</strong> {{ character.weight }}kg / {{ character.height }}cm</p>
+                                    <div class="stat-box">
+                                        <strong>Status:</strong>
+                                        <span style="margin-right:10px">🦾 STR: {{ character.stats.strength }}</span>
+                                        <span style="margin-right:10px">💨 END: {{ character.stats.endurance }}</span>
+                                        <span style="margin-right:10px">🤸‍♂️ AGI: {{ character.stats.agility }}</span>
+                                        <span>❤️ VIT: {{ character.stats.vitality }}</span>
+                                    </div>
+                                    <hr>
                                     <div class="progress-txt"><strong>EXP:</strong> {{ character.exp }} / {{ character.expToNext }}
                                     </div>
                                     <div class="exp-bar-bg">
                                         <div class="exp-bar" :style="expBarStyle"></div>
                                     </div>
                                 </div>
-                                <div class="col-6">
+                                <div class="col-sm-6">
                                     <p><strong>Skills:</strong>
                                         <span v-if="character.skills.length" class="skills-line">{{ skillString }}</span>
                                         <span v-else style="font-size:14px;color:#bdbdbd;">None</span>
                                     </p>
+                                    <div >
+                                        <button class="btn btn-style10 mt-1" @click="showGoalPanel = true">🎯 Goals</button>
+                                        <button class="btn btn-style10 mt-1" @click="showPersonalBestPanel = true" style="margin-left:6px;">🏆 Personal Best</button>
+                                        <button class="btn btn-style10 mt-1" @click="showCalendar = true" style="margin-left:6px;">📅  Calendar</button>
+                                      </div>
+                                    <br/>
                                 </div>
                                
                             </div>
@@ -68,7 +85,7 @@
                 <form @submit.prevent="logWorkout">
                     <div class="row">
                         <div class="col-sm-3">
-                            <div class="pl-4">
+                            <div class="">
                                 <div v-for="g in groupList" :key="g" style="margin-right:12px;">
                                     <input
                                         type="radio"
@@ -158,58 +175,13 @@
                         <div class="col-sm-4">
                             <br/>
                             <hr/>
-                            <button type="submit">Submit Workout</button>
+                            <button style="width:100%;" type="submit">Submit Workout</button>
                             <hr/>
                             <img :src="image" alt="">
 
                         </div>
                     </div>
                 </form>
-                <hr>
-                <div class="row">
-                    <div class="col-sm-8">
-                        <div class="goal-box" style="margin-top:12px;">
-                            <h4>🎯 Goals & Milestones</h4>
-                            <form @submit.prevent="addGoal" style="margin-bottom:7px;">
-                                <select v-model="goalInput.skill" required>
-                                    <option v-for="skill in skillList" :value="skill.code">{{skill.name}}</option>
-                                </select>
-                                <select v-model="goalInput.type" required>
-                                    <option value="reps">Reps</option>
-                                    <option value="hold">Hold(s)</option>
-                                    <option value="weight">Weight(kg)</option>
-                                    <option value="distance">Distance(m)</option>
-                                </select>
-                                <input v-model.number="goalInput.value" type="number" min="1" style="width:66px;">
-                                <button type="submit">Add</button>
-                            </form>
-                            <ul style="font-size:14px; padding-left:15px;">
-                                <li v-for="g in goals" :style="g.reached?'color:#2ba921;font-weight:bold':''">
-                                    {{ skillList.find(s=>s.code===g.skill)?.name || g.skill }} – 
-                                    {{ g.type }} {{g.value}} 
-                                    <span v-if="g.reached">✔️</span>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                    <div class="col-4">
-                        <div class="personal-best-box" v-if="Object.keys(personalBest).length">
-                            <h4>🏆 Personal Best</h4>
-                            <ul style="padding-left: 12px; font-size: 14px;">
-                                <li v-for="skill in character.skills" :key="skill.code">
-                                    <strong>{{ skill.name }}</strong>:
-                                    <template v-if="personalBest[skill.code]">
-                                        <span v-if="personalBest[skill.code].reps"> {{ personalBest[skill.code].reps }} reps, </span>
-                                        <span v-if="personalBest[skill.code].hold"> {{ personalBest[skill.code].hold }}s hold, </span>
-                                        <span v-if="personalBest[skill.code].weight && personalBest[skill.code].weight>0"> {{ personalBest[skill.code].weight }}kg, </span>
-                                        <span v-if="personalBest[skill.code].distance"> {{ personalBest[skill.code].distance }}m, </span>
-                                        <span style="color:#aaa;">{{ formatTime(personalBest[skill.code].updated) }}</span>
-                                    </template>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
                 <hr>
                 <div class="chart-section" v-if="loggedIn">
                     <div class="row">
@@ -231,26 +203,175 @@
                     </div>
                 </div>
                 <hr>
-                <div id="log">{{ log }}</div>
-                <div class="history-box" v-if="history.length">
-                    <h4>Recent Workouts</h4>
-                    <button @click="exportToExcel" style="margin-top:12px;width:170px;">Export to Excel</button>
-                    <ul class="history-list">
-                        <li v-for="item in history.slice(-6).reverse()">
-                            [{{ formatTime(item.timestamp) }}] <strong>{{ item.skill }}</strong>
-                            <template v-if="item.sets"> | {{ item.sets }}x </template>
-                            <template v-if="item.reps"> {{ item.reps }} reps</template>
-                            <template v-if="item.hold">, {{ item.hold }}s hold</template>
-                            <template v-if="item.weight">, {{ item.weight }}kg</template>
-                            <template v-if="item.distance">, {{ item.distance }} m</template>
-                            &nbsp;→&nbsp; +{{ item.exp }} XP
+                
+                 <!-- Workouts Modal -->
+                <div v-if="showWorkoutsModal" class="modal-bg" @click.self="showWorkoutsModal=false">
+                    <div class="modal-inner">
+                    <h4 style="margin-bottom:4px;">Workouts on {{ modalDateReadable }}</h4>
+                    <ul v-if="modalDayWorkouts.length">
+                        <li v-for="workout in modalDayWorkouts">
+                        <strong>{{ workout.skill }}</strong> 
+                        <template v-if="workout.sets">| {{ workout.sets }}x </template>
+                        <template v-if="workout.reps"> {{ workout.reps }} reps</template>
+                        <template v-if="workout.hold">, {{ workout.hold }}s hold</template>
+                        <template v-if="workout.weight">, {{ workout.weight }}kg</template>
+                        <template v-if="workout.distance">, {{ workout.distance }} m</template>
+                        <span style="color:#478"> +{{ workout.exp }} XP</span>
                         </li>
                     </ul>
+                    <div v-else style="color:#999;">No workouts for this day.</div>
+                    <button @click="showWorkoutsModal=false" style="margin-top: 8px;" class="btn btn-sm btn-danger">Close</button>
+                    </div>
                 </div>
+                <hr>
+                <div class="row">
+                    <div class="col-sm-12">
+                        <div id="log">{{ log }}</div>
+                        <div class="history-box" v-if="history.length">
+                            <h4>Recent Workouts</h4>
+                            <button @click="exportToExcel" style="margin-top:12px;width:170px;">Export to Excel</button>
+                            <ul class="history-list">
+                                <li v-for="item in history.slice(-6).reverse()">
+                                    [{{ formatTime(item.timestamp) }}] <strong>{{ item.skill }}</strong>
+                                    <template v-if="item.sets"> | {{ item.sets }}x </template>
+                                    <template v-if="item.reps"> {{ item.reps }} reps</template>
+                                    <template v-if="item.hold">, {{ item.hold }}s hold</template>
+                                    <template v-if="item.weight">, {{ item.weight }}kg</template>
+                                    <template v-if="item.distance">, {{ item.distance }} m</template>
+                                    &nbsp;→&nbsp; +{{ item.exp }} XP
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="col-sm-12">
+                        <br>
+                        <br>
+                    </div>
+                    <div class="col-sm-6">
+                        <!-- Calories Intake Section -->
+                        <div class="calories-section">
+                            <h4>🍛 Calories Intake Tracker</h4>
+                            <div style="display: flex; gap: 16px; align-items: center;">
+                                <input type="file" accept="image/*" ref="caloriePhoto" style="display:none" @change="onFoodPhotoSelected">
+                                <button @click="$refs.caloriePhoto.click()" class="btn btn-sm btn-style10">Take Photo</button>
+                                <span v-if="foodPhotoPreview">
+                                    <img :src="foodPhotoPreview" alt="Food Preview" style="max-width:65px;max-height:65px;vertical-align:middle;border-radius:6px;margin-left:7px;" />
+                                </span>
+                                <button :disabled="!foodPhotoFile" @click="requestGenerateCalories">Generate Calories</button>
+                            </div>
+                            <div style="margin-top:8px; min-height:35px;">
+                                <span v-if="calorieResult">
+                                    <b>Total Calories:</b> {{ calorieResult.kalori }} kcal <br/>
+                                    <span v-if="calorieResult.detail">{{ calorieResult.detail }}</span>
+                                </span>
+                                <span v-if="isCalorieLoading" style="color: #478;">Processing image, please wait...</span>
+                                <span v-if="calorieError" style="color: #b11;">{{ calorieError }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-sm-6">
+                        <div v-if="calorieLog.length" class="calorie-log-section">
+                            <h5 style="margin:7px 0 0 0;"><b>Daftar Kalori Makanan Hari Ini</b></h5>
+                            <ul style="font-size:14px; list-style: disc; margin: 3px 0 0 14px;">
+                                <li v-for="item in calorieLog.slice().reverse()" :key="item.timestamp" style="margin-bottom:5px;">
+                                    <span style="color:#555">{{ formatTime(item.timestamp) }}</span>
+                                    <span v-if="item.photoUrl">
+                                        <img :src="item.photoUrl" style="height:20px;width:auto;vertical-align:middle;margin:0 2px 0 3px;" />
+                                    </span>
+                                    <b>{{ item.kalori }} kcal</b>
+                                    <span v-if="item.detail" style="color:#788;">– {{ item.detail }}</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
 
             </div>
 
         </div>
+        <div v-if="showPersonalBestPanel" @click="showPersonalBestPanel=false" class="modal-back"></div>
+        <div v-if="showPersonalBestPanel" class="modal-screen">
+            <div class="rounded-lg shadow p-3 bg-white animate__animated animate__bounceIn">
+                <div class="floating-panel-header">
+                    <strong>🏆 Personal Best</strong>
+                    <button @click="showPersonalBestPanel=false" class="panel-close-btn">✕</button>
+                </div>
+                <ul style="padding-left: 12px; font-size: 15px; max-height:420px; overflow-y:auto;">
+                    <li v-for="skill in character.skills" :key="skill.code">
+                    <strong>{{ skill.name }}</strong>:
+                    <template v-if="personalBest[skill.code]">
+                        <span v-if="personalBest[skill.code].reps"> {{ personalBest[skill.code].reps }} reps, </span>
+                        <span v-if="personalBest[skill.code].hold"> {{ personalBest[skill.code].hold }}s hold, </span>
+                        <span v-if="personalBest[skill.code].weight && personalBest[skill.code].weight>0"> {{ personalBest[skill.code].weight }}kg, </span>
+                        <span v-if="personalBest[skill.code].distance"> {{ personalBest[skill.code].distance }}m, </span>
+                        <span style="color:#aaa;">{{ formatTime(personalBest[skill.code].updated) }}</span>
+                    </template>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <div v-if="showGoalPanel" @click="showGoalPanel=false" class="modal-back"></div>
+        <div v-if="showGoalPanel" class="modal-screen">
+            <div class="rounded-lg shadow p-3 bg-white animate__animated animate__bounceIn">
+                <div class="floating-panel-header">
+                    <strong>🎯 Goals & Milestones</strong>
+                    <button @click="showGoalPanel=false" class="panel-close-btn">✕</button>
+                </div>
+                <form @submit.prevent="addGoal" style="margin-bottom:7px;">
+                    <select v-model="goalInput.skill" required>
+                        <option v-for="skill in skillList" :value="skill.code">{{skill.name}}</option>
+                    </select>
+                    <select v-model="goalInput.type" required>
+                        <option value="reps">Reps</option>
+                        <option value="hold">Hold(s)</option>
+                        <option value="weight">Weight(kg)</option>
+                        <option value="distance">Distance(m)</option>
+                    </select>
+                    <input v-model.number="goalInput.value" type="number" min="1" style="width:66px;">
+                    <button type="submit">Add</button>
+                </form>
+                <ul style="font-size:15px; padding-left:15px; max-height:420px; overflow-y:auto;">
+                    <li v-for="g in goals"
+                        :style="[g.reached ? {'color':'#2ba921','font-weight':'bold','text-decoration':'line-through'} : {}]">
+                    {{ skillList.find(s=>s.code===g.skill)?.name || g.skill }} – {{ g.type }} {{g.value}}
+                    <span v-if="g.reached">✔️</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+        
+        <div v-if="showCalendar" @click="showCalendar=false" class="modal-back"></div>
+        <div v-if="showCalendar" class="modal-screen-full">
+            <div class="rounded-lg shadow p-3 bg-white animate__animated animate__bounceIn">
+                 <!-- Calendar View: start -->
+                 <div class="calendar-section" v-if="loggedIn">
+                    <h4>📅 Workout Calendar</h4>
+                    <div class="calendar">
+                        <div class="calendar-row calendar-header">
+                            <span v-for="w in ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']" class="calendar-header-cell">{{ w }}</span>
+                        </div>
+                        <div v-for="row in calendarRows" class="calendar-row">
+                            <span v-for="day in row" 
+                                class="calendar-cell cursor-pointer" 
+                                :class="{ today: isToday(day.date), active: day.hasWorkout }"
+                                @click="showDayWorkouts(day)">
+                            <span v-if="day.date">{{ day.num }}</span>
+                            <span v-if="day.hasWorkout" class="calendar-dot"></span>
+                            </span>
+                        </div>
+                    </div>
+                    <div style="margin-bottom:4px;">
+                        <button class="btn btn-sm btn-primary mr-2 ml-2" @click="goPrevMonth">&lt;</button>
+                        <strong>{{ (new Date(calendarYear, calendarMonth)).toLocaleString('default',{month:'long',year:'numeric'}) }}</strong>
+                        <button class="btn btn-sm btn-primary mr-2 ml-2" @click="goNextMonth">&gt;</button>
+                      </div>
+                </div>
+                <!-- Calendar View: end -->
+            </div>
+        </div>
+
     </div>
     <script>
         const SKILL_DATA = [
@@ -286,7 +407,20 @@
             level: 1,
             exp: 0,
             expToNext: 100,
-            skills: []
+            skills: [],
+            stats: {
+                strength: 5,
+                endurance: 5,
+                agility: 5,
+                vitality: 5,
+            },
+            lastLevelTimestamp: Date.now() 
+        };
+        const SKILL_STAT_MAP = {
+            strength: ['pull_up','push_up','db_bench','weighted_dips','deadlift','db_curl','barbell_squat','one_arm_pull_up','muscle_up','handstand_push_up'],
+            endurance: ['running','deadlift','push_up','db_curl','barbell_squat'],
+            agility: ['pistol_squat','planche','l_sit','handstand','dragon_flag','front_lever','back_lever'],
+            vitality: 'all', // vitalitas naik dari semua latihan
         };
 
         const STORAGE_KEY_USER = 'calisthenic_username';
@@ -315,7 +449,25 @@
                     goals: [
                         // Example: { skill: "pull_up", type: "reps", value: 20, reached: false }
                     ],
-                    goalInput: { skill: '', type: 'reps', value: 0 }
+                    goalInput: { skill: '', type: 'reps', value: 0 },
+
+                    calendarRows: [],
+                    calendarMonth: new Date().getMonth(),
+                    calendarYear: new Date().getFullYear(),
+                    showWorkoutsModal: false,
+                    modalDayWorkouts: [],
+                    modalDateReadable: "",
+
+                    foodPhotoFile: null,
+                    foodPhotoPreview: '',
+                    isCalorieLoading: false,
+                    calorieResult: null,
+                    calorieError: '',
+                    calorieLog: [], 
+
+                    showGoalPanel: false,
+                    showPersonalBestPanel: false,
+                    showCalendar:false,
                 }
             },
             computed: {
@@ -333,10 +485,17 @@
                 },
                 currentSkill() {
                     return this.skillList.find(s => s.code === this.input.skill) || this.filteredSkills[0] || {};
-                }
+                },
+                workoutDatesSet() {
+                    // Returns Set of 'YYYY-MM-DD' strings with workout(s)
+                    return new Set(this.history.map(h=>{
+                        let d = new Date(h.timestamp);
+                        return `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
+                    }));
+                },
             },
-            created() {
-                const user = localStorage.getItem(STORAGE_KEY_USER);
+            async created() {
+                const user = await localforage.getItem(STORAGE_KEY_USER);
                 if (user) {
                     this.loginInput = user;
                     this.autoLogin();
@@ -351,7 +510,7 @@
                     console.log(skill)
                     this.image=''
                 },
-                login() {
+                async login() {
                     if (!this.loginInput.trim() || this.loginWeight < 25 || this.loginHeight < 90) {
                         alert("Silakan isi semua data dengan benar.");
                         return;
@@ -360,15 +519,18 @@
                     this.character.weight = this.loginWeight;
                     this.character.height = this.loginHeight;
 
-                    const saveString = localStorage.getItem(STORAGE_KEY_PROGRESS + '_' + this.loginInput);
+                    const saveString = await localforage.getItem(STORAGE_KEY_PROGRESS + '_' + this.loginInput);
+                    console.log(saveString)
                     if (saveString) {
                         let save = JSON.parse(saveString);
                         this.character = { ...save.character };
                         this.personalBest = save.personalBest || {};
                         this.goals = save.goals || [];
                         this.history = save.history || [];
-                        this.loginWeight = this.character.weight; // isi input (UI) dengan data terakhir
+                        this.loginWeight = this.character.weight;
                         this.loginHeight = this.character.height;
+                        const clogs = await localforage.getItem("calorie_log_" + this.loginInput.trim());
+                        this.calorieLog = clogs ? JSON.parse(clogs) : [];
                     } else {
                         this.character = {
                             ...CHARACTER_TEMPLATE,
@@ -380,18 +542,20 @@
                     }
                     this.selectedGroup = GROUPS[0];
                     this.input = this.defaultInput();
-                    localStorage.setItem(STORAGE_KEY_USER, this.loginInput.trim());
+                    await localforage.setItem(STORAGE_KEY_USER, this.loginInput.trim());
                     this.loggedIn = true;
                 },
-                autoLogin() { 
+                async autoLogin() { 
                     this.loginWeight = this.character.weight || 60;
                     this.loginHeight = this.character.height || 170;
-                    this.login();
+                    const clogs = await localforage.getItem("calorie_log_" + this.loginInput.trim());
+                    this.calorieLog = clogs ? JSON.parse(clogs) : [];
+                    await this.login();
                 },
-                logout() {
+                async logout() {
                     this.loggedIn = false;
                     this.loginInput = '';
-                    localStorage.removeItem(STORAGE_KEY_USER);
+                    await localforage.removeItem(STORAGE_KEY_USER);
                     if(this.xpPerDayChart) this.xpPerDayChart.destroy();
                     if(this.expPerSkillChart) this.expPerSkillChart.destroy();
                     if(this.skillPieChart) this.skillPieChart.destroy();
@@ -545,8 +709,11 @@
                         this.character.level++;
                         this.character.expToNext = Math.floor(this.character.expToNext * 1.27 + this.character.level * 7);
                         leveledUp = true;
+                        this.increaseStatsOnLevelUp();
                     }
+                    if (leveledUp) this.character.lastLevelTimestamp = Date.now();
                     this.updatePersonalBest(skillObj, inputCopy);
+                    this.checkGoals();
                     // this.goals = save.goals || [];
 
                     this.saveProgress();
@@ -556,6 +723,49 @@
                     );
                     this.resetInputParams();
                     this.$nextTick(()=>this.renderCharts());
+                },
+                increaseStatsOnLevelUp() {
+                    // Hitung latihan sejak level up terakhir
+                    const prevTime = this.character.lastLevelTimestamp || 0;
+                    const workouts = this.history.filter(h => h.timestamp >= prevTime);
+                    
+                    // Sum XP per stat type
+                    let xpStrength = 0, xpEndurance = 0, xpAgility = 0, xpTotal = 0;
+                    for(const h of workouts){
+                        if(SKILL_STAT_MAP.strength.includes(h.skill)) xpStrength += h.exp;
+                        if(SKILL_STAT_MAP.endurance.includes(h.skill)) xpEndurance += h.exp;
+                        if(SKILL_STAT_MAP.agility.includes(h.skill)) xpAgility += h.exp;
+                        xpTotal += h.exp;
+                    }
+
+                    // Jika semua 0, beri default naik vitality
+                    if(xpTotal === 0) {
+                        this.character.stats.vitality += 2;
+                        return;
+                    }
+
+                    // Bagi 2 point: proporsional sesuai kontribusi stat (atau jika mau bisa lebih point)
+                    const statPointsPerLevel = 2; 
+                    const total = xpStrength + xpEndurance + xpAgility;
+                    const getPoints = (xp) => Math.round(statPointsPerLevel * (xp/total));
+
+                    let s = getPoints(xpStrength);
+                    let e = getPoints(xpEndurance);
+                    let a = getPoints(xpAgility);
+                    let remaining = statPointsPerLevel - (s + e + a);
+                    // Bagikan sisa ke Vitality
+                    let v = remaining>0 ? remaining : 0;
+
+                    // Tambahkan ke stats
+                    this.character.stats.strength += s;
+                    this.character.stats.endurance += e;
+                    this.character.stats.agility += a;
+                    this.character.stats.vitality += 1 + v; // vitalitas selalu naik minimal 1
+
+                    // OPTIONAL: showLog peningkatan stats
+                    this.showLog(
+                        `Level UP! +${s} STR, +${e} END, +${a} AGI, +${1+v} VIT`
+                    );
                 },
                 updatePersonalBest(skill, params) {
                     const key = skill.code;
@@ -596,14 +806,14 @@
                     }
                     if(changed) this.saveProgress();
                 },
-                saveProgress() {
+                async saveProgress() {
                     const saveObj = {
                         character: this.character,
                         history: this.history,
                         personalBest: this.personalBest,
-                        goals: this.goals // goals ikut disimpan!
+                        goals: this.goals 
                     };
-                    localStorage.setItem(STORAGE_KEY_PROGRESS + '_' + this.character.name, JSON.stringify(saveObj));
+                    await localforage.setItem(STORAGE_KEY_PROGRESS + '_' + this.character.name, JSON.stringify(saveObj));
                 },
                 renderCharts() {
                     this.renderXpPerDayChart();
@@ -764,6 +974,116 @@
                     this.log = msg;
                     setTimeout(() => { this.log = ""; }, 2550);
                 },
+                buildCalendarRows() {
+                    const y = this.calendarYear, m = this.calendarMonth;
+                    // Find first day in month
+                    const first = new Date(y, m, 1);
+                    // Which day of week is this (0=Sun..6=Sat)
+                    const startDay = first.getDay();
+                    // How many days in month
+                    const numDays = new Date(y, m+1, 0).getDate();
+                    // Array of days
+                    const days = [];
+                    let cur = 1 - startDay;
+                    for (let r=0; r<6; ++r) {
+                        let week = [];
+                        for (let c=0; c<7; ++c,++cur) {
+                            if(cur < 1 || cur > numDays){
+                                week.push({num:'', date:null, hasWorkout:false});
+                            }else{
+                                const dateStr = `${y}-${(m+1).toString().padStart(2,'0')}-${cur.toString().padStart(2,'0')}`;
+                                week.push({
+                                    num: cur,
+                                    date: dateStr,
+                                    hasWorkout: this.workoutDatesSet.has(dateStr)
+                                });
+                            }
+                        }
+                        days.push(week);
+                    }
+                    this.calendarRows = days;
+                },
+                isToday(dateStr){
+                    if(!dateStr) return false;
+                    const d=new Date();
+                    const todayStr=`${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
+                    return todayStr===dateStr;
+                },
+                goPrevMonth(){
+                    if(this.calendarMonth==0){this.calendarMonth=11;this.calendarYear--;}
+                    else this.calendarMonth--;
+                    this.buildCalendarRows();
+                },
+                goNextMonth(){
+                    if(this.calendarMonth==11){this.calendarMonth=0;this.calendarYear++;}
+                    else this.calendarMonth++;
+                    this.buildCalendarRows();
+                },
+                showDayWorkouts(day) {
+                    if (!day.date) return;
+                    // Filter workouts for the clicked date
+                    this.modalDayWorkouts = this.history.filter(h => {
+                        const d = new Date(h.timestamp);
+                        const dateStr = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}`;
+                        return dateStr === day.date;
+                    });
+                    // Optionally show human readable date for modal
+                    const parts = day.date.split("-");
+                    this.modalDateReadable = `${parts[2]}/${parts[1]}/${parts[0]}`;
+                    this.showWorkoutsModal = true;
+                },
+                onFoodPhotoSelected(e) {
+                    const file = e.target.files && e.target.files[0];
+                    if (!file) return;
+                    this.foodPhotoFile = file;
+                    this.foodPhotoPreview = URL.createObjectURL(file);
+                    this.calorieResult = null;
+                    this.calorieError = '';
+                },
+                async requestGenerateCalories() {
+                    if (!this.foodPhotoFile) {
+                        this.calorieError = 'Harap upload foto makanan terlebih dahulu.';
+                        return;
+                    }
+                    this.isCalorieLoading = true;
+                    this.calorieError = '';
+                    this.calorieResult = null;
+
+                    const formData = new FormData();
+                    formData.append('photo', this.foodPhotoFile);
+
+                    try {
+                        // Ganti URL api dengan endpoint kamu
+                        const resp = await fetch('/api/calculate-calories', {
+                            method: 'POST',
+                            body: formData,
+                        });
+
+                        const res = await resp.json();
+
+                        if (res && res.status) {
+                            this.calorieResult = { kalori: res.kalori, detail: res.detail };
+
+                            // --- Simpan ke log
+                            this.addToCalorieLog({
+                                timestamp: Date.now(),
+                                kalori: res.kalori,
+                                detail: res.detail,
+                                photoUrl: this.foodPhotoPreview, // untuk display preview di log (opsional)
+                            });
+                        } else {
+                            this.calorieError = res && res.detail ? res.detail : 'Gagal memproses foto.';
+                        }
+                    } catch (e) {
+                        this.calorieError = 'Terjadi kesalahan koneksi/API.';
+                    } finally {
+                        this.isCalorieLoading = false;
+                    }
+                },
+                async addToCalorieLog(entry) {
+                    this.calorieLog.push(entry);
+                    await localforage.setItem("calorie_log_" + (this.character?.name || "guest"), JSON.stringify(this.calorieLog));
+                },
                 formatTime(ts) {
                     let d = new Date(ts),
                         h = d.getHours().toString().padStart(2, "0"),
@@ -774,7 +1094,8 @@
             mounted() {
                 setTimeout(() => {
                     this.renderCharts()
-                }, 3000);
+                    this.buildCalendarRows(); // initialize calendar
+                }, 2000);
             },
             watch: {
                 'input.skill'(v) {
@@ -792,7 +1113,10 @@
                         }
                         this.input = { skill: first.code, ...params };
                     }
-                }
+                },
+                history() { this.buildCalendarRows() },
+                calendarMonth() { this.buildCalendarRows() },
+                calendarYear() { this.buildCalendarRows() },
             }
         }).mount('#app');
     </script>

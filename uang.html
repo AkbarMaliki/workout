@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Cash Flow Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+  <link rel="stylesheet" href="https://web-raker-deploy.vercel.app/all.css">
+  <link rel="stylesheet" href="./style.css">
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <!-- localForage -->
+  <script src="https://cdn.rawgit.com/mozilla/localForage/master/dist/localforage.js"></script>
+  <style>
+    .goal-passed { color: #2ba921; font-weight: bold; }
+    .goal-lost { color: #e03a3a; font-weight: bold; }
+    .goal-ontrack { color:#1976d2; font-weight:bold;}
+    .bar-bg { background: #ccc; border-radius: 6px; width:100%; height:24px; margin-top:2px; }
+    .bar { background: #2ba921; border-radius: 6px; height:100%; transition:.5s; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div v-if="!loggedIn" class="login-container">
+    <h2>Cash Flow Tracker</h2>
+    <input v-model="loginInput" placeholder="Username" maxlength="18">
+    <p>Saldo Awal/Tabungan Awal (Rp)</p>
+    <input type="number" min="0" v-model.number="saldoInput" placeholder="Contoh: 5000000">
+    <p>Goal Tabungan (Rp)</p>
+    <input type="number" min="0" v-model.number="goalInput" placeholder="Misal: 10000000">
+    <p>Tanggal Target Goal</p>
+    <input type="date" v-model="goalDateInput" :min="todayStr()">
+    <button @click="login">Login</button>
+  </div>
+  <div v-else class="row justify-content-center">
+    <div class="col-10 bg-white sm:p-5 shadow rounded-lg">
+      <button class="logout-btn" @click="logout">Logout</button>
+      <br>
+      <h1>Cash Flow Tracker</h1>
+
+      <div class="status-card">
+        <div><b>Nama:</b> {{ user.name }}</div>
+        <div><b>Saldo Sekarang:</b> Rp {{ currency(user.saldo) }}</div>
+        <div>
+          <b>Goal:</b> Rp {{ currency(user.goal) }}
+          <span v-if="user.goalDate"> (Target: {{ formatDate(user.goalDate) }})</span>
+        </div>
+        <div>
+          <b>Progress:</b>
+          <span :class="progressClass">
+            {{ pctToGoal }}%
+            <span v-if="user.saldo >= user.goal">✔️ Goal Tercapai!</span>
+            <span v-else> &nbsp;({{ user.goal-user.saldo>0 ? 'Kurang ' + currency(user.goal - user.saldo) : '' }})</span>
+          </span>
+          <div v-if="user.goalDate && !goalReached">
+            <br>
+            Status: 
+            <span :class="{'goal-ontrack': onTrack, 'goal-lost': !onTrack, 'goal-passed': overshoot}">
+              <span v-if="overshoot">Overshoot 🎉</span>
+              <span v-else-if="onTrack">On Track 🚀</span>
+              <span v-else>Di Bawah Target 😟</span>
+            </span>
+            <div style="font-size:13px;color:#757; margin-top:1px;" v-if="!overshoot">
+                Harusnya per hari ini: Rp {{ currency(trackerShould) }}
+            </div>
+          </div>
+        </div>
+        <div class="bar-bg" style="max-width:350px;margin:6px 0;">
+          <div class="bar" :style="barStyle"></div>
+        </div>
+      </div>
+
+      <hr>
+      <form @submit.prevent="addTransaksi">
+        <select v-model="transaksiInput.type" required>
+          <option value="out">Pengeluaran</option>
+          <option value="in">Pemasukan</option>
+        </select>
+        <input type="number" min="1" v-model.number="transaksiInput.nominal" placeholder="Nominal (Rp)" required style="width:110px">
+        <input v-model="transaksiInput.ket" placeholder="Keterangan" style="width:140px">
+        <input type="date" v-model="transaksiInput.tgl" required style="width:135px">
+        <hr>
+        <button type="submit" style="width: 100%;">Tambahkan</button>
+      </form>
+      <hr>
+      <button @click="exportToExcel" style="width:180px;margin-bottom:8px;">Export ke Excel</button>
+      <div class="chart-section">
+        <div class="row">
+          <div class="col-sm-6">
+            <div id="saldoPerDayChart"></div>
+          </div>
+          <div class="col-sm-6">
+            <div id="pieChart"></div>
+          </div>
+        </div>
+      </div>
+      <hr>
+
+      <div class="history-box" v-if="transaksiList.length">
+        <h4>Riwayat Transaksi Terakhir</h4>
+        <ul class="history-list">
+          <li v-for="t in transaksiList.slice(-6).reverse()">
+            [{{ formatTgl(t.tgl, t.ts) }}] <b>{{ t.type==='in' ? '+' : '-' }}Rp {{ currency(t.nominal) }}</b>
+            <span v-if="getTransPercentDiff(t) !== 0" style="color:#888;" class="px-2">
+                <template v-if="getTransPercentDiff(t) > 0">Naik {{ getTransPercentDiff(t) }}% </template>
+                <template v-else>Turun {{ Math.abs(getTransPercentDiff(t)) }}%</template>
+                dari target hari itu
+              </span>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+Vue.createApp({
+  data(){
+    return {
+      loggedIn: false,
+      loginInput: "",
+      saldoInput: 0,
+      goalInput: 0,
+      goalDateInput: "",
+      user: { name:'', saldo:0, goal:0, goalDate:"" },
+      transaksiList: [],
+      transaksiInput: { type:'out', nominal:'', ket:'', tgl:this.todayStr() },
+      saldoPerDayChart:null,
+      pieChart:null,
+    }
+  },
+  computed:{
+    percentDiffFromTrack() {
+        if (!this.user.goalDate) return 0;
+        const ideal = this.trackerShould;
+        // Hindari pembagian dengan 0
+        if (!ideal || ideal === 0) return 0;
+        // Selalu bandingkan ke target progres ideal
+        return Math.round((this.user.saldo - ideal) / ideal * 100);
+    },
+    pctToGoal(){
+      if(!this.user.goal) return 0
+      return Math.min(100, Math.floor(this.user.saldo/this.user.goal*100))
+    },
+    barStyle(){
+      let w = Math.min(100, this.user.goal ? (this.user.saldo/this.user.goal*100) : 0)
+      return `width:${w}%;min-width:10px;background:${this.user.saldo>=this.user.goal?'#2ba921':'#FFB300'}`
+    },
+    goalReached(){
+      return this.user.saldo >= this.user.goal
+    },
+    progressClass(){
+      if(this.user.saldo>=this.user.goal) return "goal-passed"
+      if(this.onTrack) return "goal-ontrack"
+      return "goal-lost"
+    },
+    trackerShould(){
+      if(!this.user.goalDate) return 0
+      const startDate = this.firstTransDate,
+            now = new Date(),
+            goalDate = new Date(this.user.goalDate)
+      if(now > goalDate) return this.user.goal
+      const totalDay = (goalDate - startDate) / 86400000
+      const passedDay = (now - startDate) / 86400000
+      if(totalDay<=0) return this.user.goal
+      let target = Math.floor(this.user.saldoAwal + (passedDay/totalDay)*(this.user.goal-this.user.saldoAwal))
+      if(target < this.user.saldoAwal) target = this.user.saldoAwal
+      if(target > this.user.goal) target = this.user.goal
+      return target
+    },
+    onTrack(){
+      if(!this.user.goalDate) return false
+      return this.user.saldo >= this.trackerShould && !this.overshoot
+    },
+    overshoot() {
+      if(!this.user.goalDate) return false
+      return this.user.saldo > this.user.goal && new Date() < new Date(this.user.goalDate)
+    },
+    firstTransDate(){
+      if(this.transaksiList.length) return new Date(this.transaksiList[0].tgl)
+      return new Date(this.user.loginDate)
+    }
+  },
+  methods:{
+    async login(){
+      if(!this.loginInput.trim() || this.saldoInput<0 || this.goalInput<=0 || !this.goalDateInput){
+        alert("Isi nama, saldo, goal, dan tanggal target dengan benar")
+        return
+      }
+      let stored = await localforage.getItem('cashflow_'+this.loginInput.trim())
+      if(stored && stored.user){
+        this.user = stored.user
+        this.transaksiList = stored.transaksiList || []
+      }else{
+        this.user = {
+          name: this.loginInput.trim(),
+          saldo: Number(this.saldoInput),
+          goal: Number(this.goalInput),
+          goalDate: this.goalDateInput,
+          saldoAwal: Number(this.saldoInput),
+          loginDate: this.todayStr()
+        }
+        this.transaksiList = []
+        await this.save()
+      }
+      this.loggedIn = true
+      setTimeout(()=>this.renderCharts(),800)
+      await localforage.setItem('cashflow_lastuser', this.user.name);
+    },
+    async logout(){
+      this.loggedIn=false
+      this.loginInput=''
+      this.saldoInput=0
+      this.goalInput=0
+      this.goalDateInput=""
+      if(this.saldoPerDayChart) this.saldoPerDayChart.destroy()
+      if(this.pieChart) this.pieChart.destroy()
+    },
+    getTransPercentDiff(tr){
+        if (!this.user.goalDate) return 0;
+        const startDate = this.firstTransDate;
+        const goalDate = new Date(this.user.goalDate);
+        const tglTrans = new Date(tr.tgl);
+        const totalDay = (goalDate - startDate) / 86400000;
+        const passedDay = (tglTrans - startDate) / 86400000;
+        let ideal = totalDay>0
+            ? Math.floor(this.user.saldoAwal + (passedDay/totalDay)*(this.user.goal-this.user.saldoAwal))
+            : this.user.goal;
+        if (!ideal) return 0;
+        // Hitung saldo setelah transaksi ini
+        let saldo = this.user.saldoAwal;
+        let sorted = this.transaksiList.slice().sort((a,b)=>(a.tgl||"")>(b.tgl||"")?1:-1);
+        for(const t of sorted){
+            if(t.tgl > tr.tgl || (t.tgl===tr.tgl && t.ts>tr.ts)) break;
+            saldo += (t.type==='in'?t.nominal:-t.nominal);
+        }
+        return Math.round((saldo - ideal)/ ideal * 100);
+    },
+    async save(){
+        let userClean = JSON.parse(JSON.stringify(this.user))
+        let transaksiListClean = this.transaksiList ? JSON.parse(JSON.stringify(this.transaksiList)) : []
+        await localforage.setItem('cashflow_'+userClean.name, {
+            user: userClean,
+            transaksiList: transaksiListClean
+        })
+    },
+    async addTransaksi(){
+      if(!this.transaksiInput.type || !this.transaksiInput.nominal || !this.transaksiInput.tgl)
+        return
+      if(!confirm("Submit ?")){
+        return
+      }
+      const nominal = Number(this.transaksiInput.nominal)
+      if(this.transaksiInput.type==='in') this.user.saldo += nominal
+      else this.user.saldo -= nominal
+      this.transaksiList.push({
+        ...this.transaksiInput,
+        nominal,
+        ts: Date.now()
+      })
+      await this.save()
+      this.transaksiInput = { type:'out', nominal:'', ket:'', tgl:this.todayStr() }
+      this.$nextTick(()=>this.renderCharts())
+    },
+    renderCharts(){
+      const saldoMap = {}, pieMap = { in:0, out:0 }
+      let saldo = this.user.saldoAwal || 0
+      let sortedTrans = this.transaksiList
+        .slice()
+        .sort((a,b)=>(a.tgl||"")>(b.tgl||"")?1:-1)
+      sortedTrans.forEach(tr=>{
+        let tgl = tr.tgl || this.formatTgl(null,tr.ts)
+        if(!(tgl in saldoMap)) saldoMap[tgl]=saldo
+        if(tr.type==='in'){ saldo += tr.nominal; pieMap.in += tr.nominal }
+        else { saldo -= tr.nominal; pieMap.out += tr.nominal }
+        saldoMap[tgl]=saldo
+      })
+      if(this.saldoPerDayChart) this.saldoPerDayChart.destroy()
+      this.saldoPerDayChart = new ApexCharts(document.querySelector("#saldoPerDayChart"),{
+        chart:{type:'area',height:180,toolbar:{show:false}},
+        series:[{name:'Saldo', data:Object.values(saldoMap)}],
+        xaxis:{categories:Object.keys(saldoMap), title:{text:'Tgl'}},
+        yaxis:{title:{text:'Saldo'}},
+        title:{text:'Saldo Per Hari',align:'center', style:{fontSize:'15px'}}
+      }); this.saldoPerDayChart.render()
+      if(this.pieChart) this.pieChart.destroy()
+      this.pieChart = new ApexCharts(document.querySelector("#pieChart"),{
+        chart:{type:'donut',height:180},
+        series:[pieMap.in, pieMap.out],
+        labels:['Pemasukan','Pengeluaran'],
+        title:{text:'Komposisi Cashflow', align:'center', style:{fontSize:'15px'}}
+      }); this.pieChart.render()
+    },
+    async exportToExcel(){
+      let header = [
+        "Tanggal","Tipe","Nominal","Keterangan","Saldo Setelah","Status Progress"
+      ], data = []
+      let saldo = this.user.saldoAwal || 0
+      let sortedTrans = this.transaksiList.slice().sort((a,b)=>(a.tgl||"")>(b.tgl||"")?1:-1)
+      for(const t of sortedTrans){
+        if(t.type === 'in') saldo += t.nominal
+        else saldo -= t.nominal
+        let ideal = this.user.goalDate
+          ? Math.floor(this.user.saldoAwal + ( (new Date(t.tgl)-this.firstTransDate)/(new Date(this.user.goalDate)-this.firstTransDate)  * (this.user.goal-this.user.saldoAwal)))
+          : null
+        let status = (saldo >= this.user.goal) ? "Goal Tercapai" : (ideal && saldo >= ideal) ? "On Track" : "Belum On Track"
+        data.push([
+          t.tgl, t.type === 'in' ? 'Pemasukan' : 'Pengeluaran', t.nominal||0, t.ket||'', saldo, status
+        ])
+      }
+      let ws = XLSX.utils.aoa_to_sheet([header,...data])
+      let wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,"RiwayatCashflow")
+      XLSX.writeFile(wb,`cashflow_${this.user.name}_${this.todayStr()}.xlsx`)
+    },
+    formatTgl(date, ts){
+      if(date) return date.replace(/^\d{4}-/g,'')
+      const d=new Date(ts)
+      return `${(d.getMonth()+1).toString().padStart(2,'0')}/${d.getDate().toString().padStart(2,'0')}`
+    },
+    todayStr(){ let d=new Date(); return `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}-${d.getDate().toString().padStart(2,'0')}` },
+    currency(n){ return (n||0).toLocaleString("id-ID") },
+    formatDate(dstr){
+      if(!dstr) return ""
+      let d = dstr.split('-'); return d[2]+"/"+d[1]+"/"+d[0]
+    }
+  },
+  async mounted() {
+  // Cek user terakhir
+  let last = await localforage.getItem('cashflow_lastuser');
+  if(last){
+    let stored = await localforage.getItem('cashflow_' + last);
+    if(stored && stored.user){
+      this.user = stored.user;
+      this.transaksiList = stored.transaksiList || [];
+      this.loggedIn = true;
+      setTimeout(()=>this.renderCharts(), 800);
+    }
+  }
+}
+}).mount('#app')
+</script>
+</body>
+</html>
