@@ -19,6 +19,7 @@
   
 
     <div id="app">
+        
         <div v-if="!loggedIn" class="login-container">
             <h2>Welcome to Workout Progression</h2>
             <input placeholder="Enter your username" v-model="loginInput" @keyup.enter="login" autofocus maxlength="18">
@@ -33,6 +34,89 @@
                 <button class="logout-btn" @click="logout">Logout</button>
                 <br>
                 <h1>Workout Progression Tracker</h1>
+                <br>
+                <div v-if="showPersonalBestPanel" >
+                    <div class="rounded-lg shadow p-3 bg-white animate__animated animate__bounceIn">
+                        <div class="floating-panel-header">
+                            <strong>🏆 Personal Best</strong>
+                            <button @click="showPersonalBestPanel=false" class="panel-close-btn">✕</button>
+                        </div>
+                        <ul style="padding-left: 12px; font-size: 15px; max-height:420px; overflow-y:auto;">
+                            <li v-for="skill in character.skills" :key="skill.code">
+                            <strong>{{ skill.name }}</strong>:
+                            <template v-if="personalBest[skill.code]">
+                                <span v-if="personalBest[skill.code].reps"> {{ personalBest[skill.code].reps }} reps, </span>
+                                <span v-if="personalBest[skill.code].hold"> {{ personalBest[skill.code].hold }}s hold, </span>
+                                <span v-if="personalBest[skill.code].weight && personalBest[skill.code].weight>0"> {{ personalBest[skill.code].weight }}kg, </span>
+                                <span v-if="personalBest[skill.code].distance"> {{ personalBest[skill.code].distance }}m, </span>
+                                <span style="color:#aaa;">{{ formatTime(personalBest[skill.code].updated) }}</span>
+                            </template>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+        
+                <div v-if="showGoalPanel" >
+                    <div class="rounded-lg shadow p-3 bg-white animate__animated animate__bounceIn">
+                        <div class="floating-panel-header">
+                            <strong>🎯 Goals & Milestones</strong>
+                            <button @click="showGoalPanel=false" class="panel-close-btn">✕</button>
+                        </div>
+                        <form @submit.prevent="addGoal" style="margin-bottom:7px;">
+                            <select v-model="goalInput.skill" required>
+                                <option v-for="skill in skillList" :value="skill.code">{{skill.name}}</option>
+                            </select>
+                            <select v-model="goalInput.type" required>
+                                <option value="reps">Reps</option>
+                                <option value="hold">Hold(s)</option>
+                                <option value="weight">Weight(kg)</option>
+                                <option value="distance">Distance(m)</option>
+                            </select>
+                            <input v-model.number="goalInput.value" type="number" min="1" style="width:66px;">
+                            <button type="submit">Add</button>
+                        </form>
+                        <ul style="font-size:15px; padding-left:15px; max-height:420px; overflow-y:auto;">
+                            <li v-for="g in goals"
+                                :style="[g.reached ? {'color':'#2ba921','font-weight':'bold','text-decoration':'line-through'} : {}]">
+                            {{ skillList.find(s=>s.code===g.skill)?.name || g.skill }} – {{ g.type }} {{g.value}}
+                            <span v-if="g.reached">✔️</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div v-if="showCalendar" >
+                    <div class="rounded-lg shadow p-3 bg-white animate__animated animate__bounceIn">
+                         <!-- Calendar View: start -->
+                         <div class="calendar-section" v-if="loggedIn">
+                            <div class="floating-panel-header">
+                                <h4>📅 Workout Calendar</h4>
+                                <button @click="showCalendar=false" class="panel-close-btn">✕</button>
+                            </div>
+                            <div class="calendar">
+                                <div class="calendar-row calendar-header">
+                                    <span v-for="w in ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']" class="calendar-header-cell">{{ w }}</span>
+                                </div>
+                                <div v-for="row in calendarRows" class="calendar-row">
+                                    <span v-for="day in row" 
+                                        class="calendar-cell cursor-pointer" 
+                                        :class="{ today: isToday(day.date), active: day.hasWorkout }"
+                                        @click="showDayWorkouts(day)">
+                                    <span v-if="day.date">{{ day.num }}</span>
+                                    <span v-if="day.hasWorkout" class="calendar-dot"></span>
+                                    </span>
+                                </div>
+                            </div>
+                            <div style="margin-bottom:4px;">
+                                <button class="btn btn-sm btn-primary mr-2 ml-2" @click="goPrevMonth">&lt;</button>
+                                <strong>{{ (new Date(calendarYear, calendarMonth)).toLocaleString('default',{month:'long',year:'numeric'}) }}</strong>
+                                <button class="btn btn-sm btn-primary mr-2 ml-2" @click="goNextMonth">&gt;</button>
+                              </div>
+                        </div>
+                        <!-- Calendar View: end -->
+                    </div>
+                </div>
+
                 <div class="status-card">
                     <div class="row">
                         <div class="col-sm-3 d-flex align-items-center justify-content-center">
@@ -290,87 +374,7 @@
             </div>
 
         </div>
-        <div v-if="showPersonalBestPanel" @click="showPersonalBestPanel=false" class="modal-back"></div>
-        <div v-if="showPersonalBestPanel" class="modal-screen">
-            <div class="rounded-lg shadow p-3 bg-white animate__animated animate__bounceIn">
-                <div class="floating-panel-header">
-                    <strong>🏆 Personal Best</strong>
-                    <button @click="showPersonalBestPanel=false" class="panel-close-btn">✕</button>
-                </div>
-                <ul style="padding-left: 12px; font-size: 15px; max-height:420px; overflow-y:auto;">
-                    <li v-for="skill in character.skills" :key="skill.code">
-                    <strong>{{ skill.name }}</strong>:
-                    <template v-if="personalBest[skill.code]">
-                        <span v-if="personalBest[skill.code].reps"> {{ personalBest[skill.code].reps }} reps, </span>
-                        <span v-if="personalBest[skill.code].hold"> {{ personalBest[skill.code].hold }}s hold, </span>
-                        <span v-if="personalBest[skill.code].weight && personalBest[skill.code].weight>0"> {{ personalBest[skill.code].weight }}kg, </span>
-                        <span v-if="personalBest[skill.code].distance"> {{ personalBest[skill.code].distance }}m, </span>
-                        <span style="color:#aaa;">{{ formatTime(personalBest[skill.code].updated) }}</span>
-                    </template>
-                    </li>
-                </ul>
-            </div>
-        </div>
-
-        <div v-if="showGoalPanel" @click="showGoalPanel=false" class="modal-back"></div>
-        <div v-if="showGoalPanel" class="modal-screen">
-            <div class="rounded-lg shadow p-3 bg-white animate__animated animate__bounceIn">
-                <div class="floating-panel-header">
-                    <strong>🎯 Goals & Milestones</strong>
-                    <button @click="showGoalPanel=false" class="panel-close-btn">✕</button>
-                </div>
-                <form @submit.prevent="addGoal" style="margin-bottom:7px;">
-                    <select v-model="goalInput.skill" required>
-                        <option v-for="skill in skillList" :value="skill.code">{{skill.name}}</option>
-                    </select>
-                    <select v-model="goalInput.type" required>
-                        <option value="reps">Reps</option>
-                        <option value="hold">Hold(s)</option>
-                        <option value="weight">Weight(kg)</option>
-                        <option value="distance">Distance(m)</option>
-                    </select>
-                    <input v-model.number="goalInput.value" type="number" min="1" style="width:66px;">
-                    <button type="submit">Add</button>
-                </form>
-                <ul style="font-size:15px; padding-left:15px; max-height:420px; overflow-y:auto;">
-                    <li v-for="g in goals"
-                        :style="[g.reached ? {'color':'#2ba921','font-weight':'bold','text-decoration':'line-through'} : {}]">
-                    {{ skillList.find(s=>s.code===g.skill)?.name || g.skill }} – {{ g.type }} {{g.value}}
-                    <span v-if="g.reached">✔️</span>
-                    </li>
-                </ul>
-            </div>
-        </div>
         
-        <div v-if="showCalendar" @click="showCalendar=false" class="modal-back"></div>
-        <div v-if="showCalendar" class="modal-screen-full">
-            <div class="rounded-lg shadow p-3 bg-white animate__animated animate__bounceIn">
-                 <!-- Calendar View: start -->
-                 <div class="calendar-section" v-if="loggedIn">
-                    <h4>📅 Workout Calendar</h4>
-                    <div class="calendar">
-                        <div class="calendar-row calendar-header">
-                            <span v-for="w in ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']" class="calendar-header-cell">{{ w }}</span>
-                        </div>
-                        <div v-for="row in calendarRows" class="calendar-row">
-                            <span v-for="day in row" 
-                                class="calendar-cell cursor-pointer" 
-                                :class="{ today: isToday(day.date), active: day.hasWorkout }"
-                                @click="showDayWorkouts(day)">
-                            <span v-if="day.date">{{ day.num }}</span>
-                            <span v-if="day.hasWorkout" class="calendar-dot"></span>
-                            </span>
-                        </div>
-                    </div>
-                    <div style="margin-bottom:4px;">
-                        <button class="btn btn-sm btn-primary mr-2 ml-2" @click="goPrevMonth">&lt;</button>
-                        <strong>{{ (new Date(calendarYear, calendarMonth)).toLocaleString('default',{month:'long',year:'numeric'}) }}</strong>
-                        <button class="btn btn-sm btn-primary mr-2 ml-2" @click="goNextMonth">&gt;</button>
-                      </div>
-                </div>
-                <!-- Calendar View: end -->
-            </div>
-        </div>
 
     </div>
     <script>
