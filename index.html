@@ -25,10 +25,7 @@
         <div v-if="!loggedIn" class="login-container">
             <h2>Welcome to Workout Progression</h2>
             <input placeholder="Enter your username" v-model="loginInput" @keyup.enter="login" autofocus maxlength="18">
-            <p>Berat Badan (kg)</p>
-            <input placeholder="Berat badan (kg)" type="number" min="25" max="250" v-model.number="loginWeight" style="margin-bottom:10px;">
-            <p>Tinggi Badan (cm)</p>
-            <input placeholder="Tinggi badan (cm)" type="number" min="90" max="230" v-model.number="loginHeight" style="margin-bottom:18px;">
+           
             <button @click="login">Login</button>
         </div>        
         <div v-else class=" row justify-content-center">
@@ -677,7 +674,7 @@
               
             },
             async created() {
-                const user = await localforage.getItem(STORAGE_KEY_USER);
+                const user = localStorage.getItem('username');
                 if (user) {
                     this.loginInput = user;
                     this.autoLogin();
@@ -693,13 +690,12 @@
                     this.image=''
                 },
                 async login() {
-                    if (!this.loginInput.trim() || this.loginWeight < 25 || this.loginHeight < 90) {
+                    if (!this.loginInput.trim()) {
                         alert("Silakan isi semua data dengan benar.");
                         return;
                     }
+                    localStorage.setItem('username',this.loginInput.trim())
                     this.character.name = this.loginInput.trim();
-                    this.character.weight = this.loginWeight;
-                    this.character.height = this.loginHeight;
 
                     // Ganti ambil localforage dengan firestore
                     const userDoc = await db.collection('progress').doc(STORAGE_KEY_PROGRESS + '_' + this.character.name).get();
@@ -715,8 +711,8 @@
                         this.character = {
                             ...CHARACTER_TEMPLATE,
                             name: this.loginInput.trim(),
-                            weight: this.loginWeight,
-                            height: this.loginHeight
+                            weight: 61,
+                            height: 161
                         };
                         this.history = [];
                     }
@@ -726,8 +722,8 @@
                     this.loggedIn = true;
                 },
                 async autoLogin() { 
-                    this.loginWeight = this.character.weight || 60;
-                    this.loginHeight = this.character.height || 170;
+                    this.loginWeight = this.character.weight || 61;
+                    this.loginHeight = this.character.height || 161;
                     const clogs = await localforage.getItem("calorie_log_" + this.loginInput.trim());
                     this.calorieLog = clogs ? JSON.parse(clogs) : [];
                     await this.login();
@@ -752,13 +748,13 @@
                         return { 
                             skill: firstSkill.code, 
                             ...defaults,
-                            submitWeight: this.character && this.character.weight ? this.character.weight : 60,
-                            submitHeight: this.character && this.character.height ? this.character.height : 170
+                            submitWeight: this.character && this.character.weight ? this.character.weight : 61,
+                            submitHeight: this.character && this.character.height ? this.character.height : 161
                         };
                     }
                     return { skill: "", reps: 1, sets: 1, hold: 1, weight: 0, distance: 1,
-                        submitWeight: this.character && this.character.weight ? this.character.weight : 60,
-                        submitHeight: this.character && this.character.height ? this.character.height : 170
+                        submitWeight: this.character && this.character.weight ? this.character.weight : 61,
+                        submitHeight: this.character && this.character.height ? this.character.height : 161
                     };
                 },
                 resetInputParams() {
@@ -769,8 +765,8 @@
                         else if (p === 'distance') params[p] = 1;
                         else params[p] = 1;
                     }
-                    params.submitWeight = this.character.weight || 60;
-                    params.submitHeight = this.character.height || 170;
+                    params.submitWeight = this.character.weight || 61;
+                    params.submitHeight = this.character.height || 161;
                     this.input = { skill: skill.code, ...params };
                 },
                 calculateExp(skillCode, inParams) {
@@ -782,18 +778,18 @@
                     let multiplier = 1;
 
                     // Ambil berat dan tinggi user
-                    const bb = Number(this.character.weight) || 60;  // Berat badan
-                    const tb = Number(this.character.height) || 170; // Tinggi badan dalam cm
+                    const bb = Number(this.character.weight) || 61;  // Berat badan
+                    const tb = Number(this.character.height) || 161; // Tinggi badan dalam cm
 
                     // Difficulty adjustment: (Normalisasi ke 60kg/170cm, makin berat/makin tinggi lebih susah untuk kebanyakan skill)
                     let difficultFactor = 1;
                     if (["Calisthenic", "Gym"].includes(skill.group)) {
-                        difficultFactor = 1 + Math.max(0, (bb - 60) * 0.007); // setiap 10kg lebih berat, +7% xp
-                        if (tb > 170) difficultFactor += (tb - 170) * 0.002; // setiap 10cm lebih tinggi +2% xp
+                        difficultFactor = 1 + Math.max(0, (bb - 61) * 0.007); // setiap 10kg lebih berat, +7% xp
+                        if (tb > 170) difficultFactor += (tb - 161) * 0.002; // setiap 10cm lebih tinggi +2% xp
                     }
                     if (["Cardio"].includes(skill.group)) {
-                        difficultFactor = 1 + Math.max(0, (bb - 60) * 0.002); // 10kg lebih berat, +2% xp untuk cardio
-                        if (tb > 170) difficultFactor -= Math.min(0.15, (tb - 170) * 0.001); // makin tinggi sedikit lebih mudah cardio
+                        difficultFactor = 1 + Math.max(0, (bb - 61) * 0.002); // 10kg lebih berat, +2% xp untuk cardio
+                        if (tb > 170) difficultFactor -= Math.min(0.15, (tb - 161) * 0.001); // makin tinggi sedikit lebih mudah cardio
                     }
 
                     // Compound/advanced skill bonus
@@ -1306,6 +1302,7 @@
                 }
             },
             mounted() {
+                this.loginInput=localStorage.getItem('username')
                 setTimeout(() => {
                     this.renderCharts()
                     this.buildCalendarRows(); // initialize calendar
