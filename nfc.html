@@ -1,247 +1,477 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NFC Reader/Write</title>
-  <link rel="stylesheet" href="https://web-raker-deploy.vercel.app/all.css">
-  <style>
-    .card {
-      margin-top: 2rem;
-      max-width: 430px;
-      margin-left: auto;
-      margin-right: auto;
-      box-shadow: 0 0 16px rgba(60,60,60,0.07);
-      border-radius: 1rem;
-      background: #fff;
-      padding: 2rem 2rem 2.5rem 2rem;
-    }
-    .nfc-status {
-      font-weight: 600;
-      font-size: 1.10rem;
-      margin-bottom: 1rem;
-    }
-    .success {
-      color: green;
-      font-weight: bold;
-    }
-    .fail {
-      color: #c0392b;
-      font-weight: bold;
-    }
-    .mb-2 {
-      margin-bottom: 1.25rem;
-    }
-    .mb-1 {
-      margin-bottom: 0.5rem;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem NFC Jembatan Timbang</title>
+    <!-- Tailwind CSS CDN for modern and responsive styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+        
+        /* Custom Tailwind Configuration */
+        :root {
+            --primary-color: #3B82F6; /* Blue-500 */
+            --secondary-color: #10B981; /* Emerald-500 */
+            --danger-color: #EF4444; /* Red-500 */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F7F9FC; /* Lightest background */
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card {
+            background: #ffffff;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            border-radius: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        /* Menu Card Specific Styling */
+        .menu-card {
+            height: 200px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .menu-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(59, 130, 246, 0.2);
+        }
+        
+        /* Button Styles */
+        .btn-action {
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            border-radius: 0.75rem;
+            transition: background-color 0.2s;
+        }
+
+        /* Status Styling */
+        .status-box {
+            padding: 1rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+        }
+        .status-success {
+            background-color: #D1FAE5; /* Emerald-100 */
+            color: #065F46; /* Emerald-800 */
+        }
+        .status-fail {
+            background-color: #FEE2E2; /* Red-100 */
+            color: #991B1B; /* Red-800 */
+        }
+        .status-info {
+            background-color: #DBEAFE; /* Blue-100 */
+            color: #1E40AF; /* Blue-800 */
+        }
+
+        /* Responsive Layout for Input Form */
+        @media (min-width: 640px) {
+            .input-group {
+                display: flex;
+                gap: 1rem;
+            }
+            .input-group > div {
+                flex: 1;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div id="app">
-    <div class="card">
-      <h2 class="mb-2 text-center">NFC Reader/Writer</h2>
-      
-      <div class="mb-2 text-center">
-        <button class="btn btn-dark" :class="{disabled: nfcBusy}" @click="toggleReader">
-          {{ readerActive ? 'Stop Reader' : 'Start Reader' }}
-        </button>
-      </div>
-      <div class="nfc-status mb-1" :class="{success: readStatus=='success', fail: readStatus=='fail'}" v-if="readMessage">
-        {{ readMessage }}
-      </div>
-      <div v-if="readerActive && !readMessage" class="mb-2 text-center text-muted">
-        {{ nfcInstruction }}
-      </div>
-      <div v-if="readData" class="alert alert-success mb-2">
-        <div><strong>Read Data:</strong></div>
-        <pre style="white-space: pre-wrap;word-break: break-all; margin: 0;">{{ readData }}</pre>
-      </div>
-      <div class="divider mb-2"></div>
-      <div>
-        <label for="textToWrite"><b>Text to Write to NFC Card</b></label>
-        <input class="form-control mb-1" id="textToWrite" v-model="writeText" type="text" placeholder="Enter text here"/>
-        <div class="mb-1 text-center">
-          <button class="btn btn-success" :class="{disabled: nfcBusy}" @click="writeToNFC">
-            Write to NFC
-          </button>
+    <div id="app" class="p-4 w-full max-w-xl">
+        <header class="text-center mb-10">
+            <h1 class="text-3xl font-extrabold text-gray-800">Sistem Jembatan Timbang NFC</h1>
+            <p class="text-gray-500 mt-2">Pilih fungsi untuk melanjutkan operasi.</p>
+        </header>
+
+        <div class="card p-6 md:p-8">
+            <div v-if="currentView === 'menu'">
+                <h2 class="text-xl font-bold text-gray-700 mb-6 border-b pb-3">Menu Utama</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Gate Bridge Reader Card -->
+                    <div @click="changeView('reader')" class="menu-card bg-blue-500 text-white flex flex-col items-center justify-center p-6 rounded-xl shadow-lg">
+                        <i class="fas fa-route text-4xl mb-3"></i>
+                        <span class="text-lg font-bold">Buka Gerbang Timbang</span>
+                        <span class="text-sm opacity-80 mt-1">Pembacaan Tag Akses</span>
+                    </div>
+
+                    <!-- Driver & Unit Registration Card -->
+                    <div @click="changeView('writer')" class="menu-card bg-green-500 text-white flex flex-col items-center justify-center p-6 rounded-xl shadow-lg">
+                        <i class="fas fa-address-card text-4xl mb-3"></i>
+                        <span class="text-lg font-bold">Daftar Pengemudi & Unit</span>
+                        <span class="text-sm opacity-80 mt-1">Penulisan Data ke Tag</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW: Gate Reader (Membuka Gerbang) -->
+            <div v-else-if="currentView === 'reader'">
+                <h2 class="text-xl font-bold text-gray-700 mb-6 border-b pb-3 flex items-center gap-2">
+                    <i class="fas fa-route text-blue-500"></i> Pembaca Gerbang Timbang
+                </h2>
+                
+                <div v-if="!ndefReaderSupported" class="status-box status-fail mb-6">
+                    <i class="fas fa-times-circle mr-2"></i> NFC tidak didukung pada perangkat/browser ini.
+                </div>
+                
+                <div class="text-center mb-6">
+                    <button @click="toggleReader" :disabled="nfcBusy" :class="{'bg-gray-400': nfcBusy, 'bg-blue-600 hover:bg-blue-700': !nfcBusy}" class="btn-action text-white shadow-lg">
+                        <i class="fas fa-sync-alt mr-2" :class="{'fa-spin': readerActive}"></i>
+                        {{ readerActive ? 'Batalkan Pembacaan' : 'Mulai Scan Tag Akses' }}
+                    </button>
+                </div>
+
+                <!-- Status Feedback -->
+                <div v-if="readMessage" :class="{'status-success': readStatus === 'success', 'status-fail': readStatus === 'fail', 'status-info': readStatus === 'info'}" class="status-box mb-6">
+                    <i :class="readIcon" class="mr-2"></i> {{ readMessage }}
+                </div>
+                
+                <!-- Active Scan Visual Cue -->
+                <div v-if="readerActive && !readMessage" class="text-center py-8 bg-blue-50 rounded-xl border border-dashed border-blue-300">
+                    <i class="fas fa-broadcast-tower text-6xl text-blue-500 animate-pulse"></i>
+                    <p class="mt-4 text-gray-600 font-semibold">{{ nfcInstruction }}</p>
+                </div>
+
+                <!-- Parsed Data Display -->
+                <div v-if="parsedReadData" class="mt-6 border-t pt-4">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-3">Detail Akses Tag:</h3>
+                    <div class="space-y-2">
+                        <div class="p-3 bg-gray-50 rounded-lg">
+                            <span class="font-medium text-gray-500">ID Pengemudi:</span> 
+                            <span class="font-bold text-gray-800 float-right">{{ parsedReadData.driverId || 'N/A' }}</span>
+                        </div>
+                        <div class="p-3 bg-gray-50 rounded-lg">
+                            <span class="font-medium text-gray-500">Nomor Unit:</span> 
+                            <span class="font-bold text-gray-800 float-right">{{ parsedReadData.unit || 'N/A' }}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Gate Action Status -->
+                    <div v-if="readStatus === 'success'" class="text-center mt-6 p-4 rounded-xl bg-green-100 border border-green-400">
+                        <i class="fas fa-check-circle text-green-600 text-3xl"></i>
+                        <p class="text-green-800 font-bold text-xl mt-2">GERBANG DIBUKA!</p>
+                        <p class="text-sm text-green-700">Akses disetujui untuk unit ini.</p>
+                    </div>
+                </div>
+
+                <button @click="changeView('menu')" class="mt-8 btn-action bg-gray-200 text-gray-700 hover:bg-gray-300 w-full">
+                    <i class="fas fa-arrow-left mr-2"></i> Kembali ke Menu
+                </button>
+            </div>
+
+            <!-- VIEW: Driver/Unit Registration (Pendaftaran) -->
+            <div v-else-if="currentView === 'writer'">
+                <h2 class="text-xl font-bold text-gray-700 mb-6 border-b pb-3 flex items-center gap-2">
+                    <i class="fas fa-address-card text-green-500"></i> Pendaftaran Pengemudi
+                </h2>
+                
+                <div v-if="!ndefReaderSupported" class="status-box status-fail mb-6">
+                    <i class="fas fa-times-circle mr-2"></i> NFC tidak didukung pada perangkat/browser ini.
+                </div>
+
+                <div class="space-y-4 mb-6">
+                    <!-- Driver ID Input -->
+                    <div>
+                        <label for="driverIdInput" class="block text-sm font-medium text-gray-700 mb-1">ID Pengemudi (Wajib)</label>
+                        <input type="text" id="driverIdInput" v-model="driverIdInput" placeholder="Masukkan ID atau Nama Pengemudi" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                    </div>
+                    <!-- Unit Number Input -->
+                    <div>
+                        <label for="unitNumberInput" class="block text-sm font-medium text-gray-700 mb-1">Nomor Unit (Wajib)</label>
+                        <input type="text" id="unitNumberInput" v-model="unitNumberInput" placeholder="Masukkan Nomor Unit/Kendaraan" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                    </div>
+                </div>
+
+                <div class="text-center mb-6">
+                    <button @click="writeToNFC" :disabled="nfcBusy || !formValid" :class="{'bg-gray-400': nfcBusy || !formValid, 'bg-green-600 hover:bg-green-700': !nfcBusy && formValid}" class="btn-action text-white shadow-lg">
+                        <i class="fas fa-pen-square mr-2"></i>
+                        {{ nfcBusy ? 'Menunggu Tag...' : 'Tulis Data ke Tag NFC' }}
+                    </button>
+                </div>
+                
+                <!-- Status Feedback -->
+                <div v-if="writeMessage" :class="{'status-success': writeStatus === 'success', 'status-fail': writeStatus === 'fail', 'status-info': writeStatus === 'info'}" class="status-box mb-6">
+                    <i :class="writeIcon" class="mr-2"></i> {{ writeMessage }}
+                </div>
+
+                <button @click="changeView('menu')" class="mt-4 btn-action bg-gray-200 text-gray-700 hover:bg-gray-300 w-full">
+                    <i class="fas fa-arrow-left mr-2"></i> Kembali ke Menu
+                </button>
+            </div>
         </div>
-        <div class="nfc-status mb-1" :class="{success: writeStatus=='success', fail: writeStatus=='fail'}" v-if="writeMessage">
-          {{ writeMessage }}
-        </div>
-      </div>
     </div>
-  </div>
-  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-  <script>
-    const { createApp } = Vue
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script>
+        const { createApp } = Vue
 
-    createApp({
-      data() {
-        return {
-          readerActive: false,
-          nfcBusy: false,
-          nfcInstruction: 'Bring an NFC card near your device...',
-          readData: null,
-          readMessage: '',
-          readStatus: '',
-          writeText: '',
-          writeStatus: '',
-          writeMessage: '',
-          ndefReader: null,
-          readerTimeout: null
-        }
-      },
-      methods: {
-        async toggleReader() {
-          this.clearReadState()
-          this.readMessage = ''
-          this.readStatus = ''
-          this.readData = null
-          this.nfcInstruction = 'Bring an NFC card near your device...'
-          if (!('NDEFReader' in window)) {
-            this.readMessage = 'NFC is not supported on this device/browser.'
-            this.readStatus = 'fail'
-            return
-          }
-          
-          if (this.readerActive) {
-            // Stop listening
-            this.stopReading()
-          } else {
-            // Start NFC reading
-            try {
-              this.nfcBusy = true
-              this.ndefReader = new NDEFReader()
-              await this.ndefReader.scan()
-              this.readerActive = true
+        createApp({
+            data() {
+                return {
+                    // Global State
+                    currentView: 'menu', // 'menu', 'reader', 'writer'
+                    nfcBusy: false,
+                    ndefReaderSupported: ('NDEFReader' in window),
 
-              // Add event listeners
-              this.ndefReader.onreading = event => {
-                this.onNFCRead(event)
-              }
-              this.ndefReader.onreadingerror = err => {
-                this.readMessage = 'Error reading NFC card.'
-                this.readStatus = 'fail'
-                this.nfcBusy = false
-                this.stopReading()
-              }
-              // Set a 10s limit
-              this.readerTimeout = setTimeout(() => {
-                if (this.readerActive) {
-                  this.readMessage = "Failed: No NFC card detected within 10 seconds."
-                  this.readStatus = 'fail'
-                  this.nfcBusy = false
-                  this.stopReading()
+                    // Reader State
+                    readerActive: false,
+                    ndefReader: null,
+                    readerTimeout: null,
+                    nfcInstruction: 'Dekatkan tag NFC akses ke perangkat...',
+                    
+                    readData: null,
+                    parsedReadData: null, // Parsed JSON data
+                    readMessage: '',
+                    readStatus: '', // 'success', 'fail', 'info'
+
+                    // Writer State
+                    driverIdInput: '',
+                    unitNumberInput: '',
+                    writeStatus: '',
+                    writeMessage: '',
                 }
-              }, 10000)
-            } catch (error) {
-              this.readMessage = "Could not start NFC scan: " + (error.message || error)
-              this.readStatus = 'fail'
-              this.readerActive = false
-              this.nfcBusy = false
-              this.ndefReader = null
-            }
-          }
-        },
-        stopReading() {
-          if (this.ndefReader && this.ndefReader.onreading) {
-            // There is no official stop() at the time, but toggling the event listener and busy flag serves UI logic.
-            this.ndefReader.onreading = null
-            this.ndefReader.onreadingerror = null
-          }
-          this.ndefReader = null
-          this.readerActive = false
-          this.nfcBusy = false
-          if (this.readerTimeout) {
-            clearTimeout(this.readerTimeout)
-            this.readerTimeout = null
-          }
-        },
-        onNFCRead(event) {
-          let message = ''
-          try {
-            const decoder = new TextDecoder()
-            if(event.message && event.message.records.length > 0) {
-              for (const record of event.message.records) {
-                if (record.recordType === "text") {
-                  message += decoder.decode(record.data) + "\n"
-                } else {
-                  message += `[${record.recordType}] ` + decoder.decode(record.data) + "\n"
+            },
+            computed: {
+                formValid() {
+                    return this.driverIdInput.trim().length > 0 && this.unitNumberInput.trim().length > 0
+                },
+                readIcon() {
+                    if (this.readStatus === 'success') return 'fas fa-check-circle'
+                    if (this.readStatus === 'fail') return 'fas fa-exclamation-triangle'
+                    return 'fas fa-info-circle'
+                },
+                writeIcon() {
+                    if (this.writeStatus === 'success') return 'fas fa-check-circle'
+                    if (this.writeStatus === 'fail') return 'fas fa-exclamation-triangle'
+                    return 'fas fa-info-circle'
                 }
-              }
-              this.readData = message.trim()
-              this.readMessage = 'Success: Data read from NFC card.'
-              this.readStatus = 'success'
-            } else {
-              this.readData = null
-              this.readMessage = 'NFC card found, but no textual data.'
-              this.readStatus = 'fail'
+            },
+            methods: {
+                changeView(view) {
+                    this.resetStates()
+                    this.currentView = view
+                    // Optional: Automatically start reader if entering reader view and supported
+                    if (view === 'reader' && this.ndefReaderSupported) {
+                        this.toggleReader()
+                    }
+                },
+                resetStates() {
+                    // Stop any active NFC process
+                    this.stopReading()
+                    this.nfcBusy = false
+                    
+                    // Reset Read State
+                    this.readerActive = false
+                    this.readData = null
+                    this.parsedReadData = null
+                    this.readMessage = ''
+                    this.readStatus = ''
+                    
+                    // Reset Write State
+                    this.writeStatus = ''
+                    this.writeMessage = ''
+                },
+                
+                // --- READER (GATE CONTROL) LOGIC ---
+                async toggleReader() {
+                    if (!this.ndefReaderSupported) {
+                        this.readMessage = 'NFC tidak didukung pada perangkat ini.'
+                        this.readStatus = 'fail'
+                        return
+                    }
+
+                    this.resetReadState()
+                    
+                    if (this.readerActive) {
+                        this.stopReading()
+                        this.readMessage = 'Pembacaan dibatalkan.'
+                        this.readStatus = 'info'
+                    } else {
+                        // Start NFC reading
+                        try {
+                            this.nfcBusy = true
+                            this.ndefReader = new NDEFReader()
+                            await this.ndefReader.scan()
+                            this.readerActive = true
+                            this.readMessage = 'Siap. Dekatkan tag NFC...'
+                            this.readStatus = 'info'
+
+                            // Add event listeners
+                            this.ndefReader.onreading = event => {
+                                this.onNFCRead(event)
+                            }
+                            this.ndefReader.onreadingerror = err => {
+                                this.readMessage = 'Kesalahan saat membaca tag: ' + (err.message || 'Tag tidak valid.')
+                                this.readStatus = 'fail'
+                                this.nfcBusy = false
+                                this.stopReading()
+                            }
+                            // Set a 15s limit
+                            this.readerTimeout = setTimeout(() => {
+                                if (this.readerActive) {
+                                    this.readMessage = "Gagal: Tag NFC tidak terdeteksi dalam 15 detik."
+                                    this.readStatus = 'fail'
+                                    this.nfcBusy = false
+                                    this.stopReading()
+                                }
+                            }, 15000)
+                        } catch (error) {
+                            this.readMessage = "Gagal memulai scan NFC: " + (error.message || error)
+                            this.readStatus = 'fail'
+                            this.readerActive = false
+                            this.nfcBusy = false
+                            this.ndefReader = null
+                        }
+                    }
+                },
+
+                stopReading() {
+                    // Clear the timeout
+                    if (this.readerTimeout) {
+                        clearTimeout(this.readerTimeout)
+                        this.readerTimeout = null
+                    }
+                    // Stop Vue state
+                    this.readerActive = false
+                    this.nfcBusy = false
+                    this.ndefReader = null // No official stop method, so we unset the object and listeners
+                },
+
+                onNFCRead(event) {
+                    this.nfcBusy = false
+                    this.stopReading()
+                    
+                    try {
+                        const decoder = new TextDecoder()
+                        let rawText = ''
+                        let parsedData = {}
+
+                        if(event.message && event.message.records.length > 0) {
+                            for (const record of event.message.records) {
+                                if (record.recordType === "text") {
+                                    rawText = decoder.decode(record.data).trim()
+                                    // Try to parse the content as JSON (our expected format)
+                                    try {
+                                        parsedData = JSON.parse(rawText)
+                                    } catch (e) {
+                                        // Not valid JSON or our format, handle as plain text
+                                        parsedData = { driverId: 'N/A (Teks Biasa)', unit: rawText }
+                                    }
+                                    break // Only read the first text record
+                                }
+                            }
+                            
+                            this.readData = rawText
+                            this.parsedReadData = parsedData
+
+                            // Validation for Gate Access: must have driverId and unit
+                            if (parsedData.driverId && parsedData.unit) {
+                                this.readMessage = `Sukses! Akses disetujui untuk ${parsedData.driverId}.`
+                                fetch('https://hasnur-b7714-default-rtdb.firebaseio.com/gate.json', {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify(1)
+                                })
+                                .then(response => {
+                                    // Optional: You can check status or handle result if desired
+                                })
+                                .catch(error => {
+                                    // Optional: Handle fetch error if needed
+                                });
+                                this.readStatus = 'success'
+                            } else {
+                                this.readMessage = 'Tag terbaca, tetapi data tidak lengkap atau format salah (Akses Ditolak).'
+                                this.readStatus = 'fail'
+                            }
+
+                        } else {
+                            this.readData = null
+                            this.parsedReadData = null
+                            this.readMessage = 'Tag NFC ditemukan, tetapi tidak berisi data teks (Akses Ditolak).'
+                            this.readStatus = 'fail'
+                        }
+                    } catch (e) {
+                        this.readData = null
+                        this.parsedReadData = null
+                        this.readMessage = 'Kesalahan pemrosesan data NFC.'
+                        this.readStatus = 'fail'
+                    }
+                },
+
+                resetReadState() {
+                    if(this.readerTimeout) clearTimeout(this.readerTimeout)
+                    this.readData = null
+                    this.parsedReadData = null
+                    this.readStatus = ''
+                    this.readMessage = ''
+                },
+
+                // --- WRITER (REGISTRATION) LOGIC ---
+                async writeToNFC() {
+                    if (!this.ndefReaderSupported) {
+                        this.writeMessage = "NFC tidak didukung pada perangkat ini."
+                        this.writeStatus = 'fail'
+                        return
+                    }
+                    if (!this.formValid) {
+                        this.writeMessage = 'Mohon isi semua kolom (ID Pengemudi & Nomor Unit).'
+                        this.writeStatus = 'fail'
+                        return
+                    }
+
+                    this.writeStatus = ''
+                    this.writeMessage = 'Dekatkan tag NFC kosong atau dapat ditimpa untuk penulisan...'
+                    this.nfcBusy = true
+                    let writeTimeoutFired = false
+                    
+                    const dataToWrite = {
+                        driverId: this.driverIdInput.trim(),
+                        unit: this.unitNumberInput.trim()
+                    }
+                    // Prepare the data as a JSON string record
+                    const textRecord = JSON.stringify(dataToWrite)
+
+                    try {
+                        const ndef = new NDEFReader()
+                        let timeoutId = setTimeout(() => {
+                            writeTimeoutFired = true
+                            this.writeMessage = "Gagal: Tag NFC tidak terdeteksi untuk penulisan dalam 15 detik."
+                            this.writeStatus = 'fail'
+                            this.nfcBusy = false
+                        }, 15000)
+
+                        // NDEF write operation
+                        await ndef.write({
+                            records: [{
+                                recordType: "text", 
+                                data: textRecord
+                            }]
+                        })
+                        
+                        if (writeTimeoutFired) return; 
+
+                        clearTimeout(timeoutId)
+                        this.writeMessage = "Sukses! Data Unit/Pengemudi telah ditulis ke tag NFC."
+                        this.writeStatus = "success"
+                        this.nfcBusy = false
+
+                    } catch (err) {
+                        if (!writeTimeoutFired) {
+                            this.writeMessage = "Gagal Menulis: " + (err.message || "Pastikan tag dapat ditulisi.")
+                            this.writeStatus = 'fail'
+                            this.nfcBusy = false
+                        }
+                    }
+                },
             }
-          } catch (e) {
-            this.readData = null
-            this.readMessage = 'Error parsing NFC data.'
-            this.readStatus = 'fail'
-          }
-          this.nfcBusy = false
-          this.stopReading()
-        },
-        async writeToNFC() {
-          this.clearWriteState()
-          this.writeStatus = ''
-          this.writeMessage = ''
-          if (!this.writeText.trim()) {
-            this.writeMessage = 'Please enter text to write!'
-            this.writeStatus = 'fail'
-            return
-          }
-          if (!('NDEFReader' in window)) {
-            this.writeMessage = "NFC is not supported on this device/browser."
-            this.writeStatus = 'fail'
-            return
-          }
-
-          this.nfcBusy = true
-          let writeTimeoutFired = false
-
-          // wait for NFC card (similarly, 10s)
-          try {
-            const ndef = new NDEFReader()
-            let timeoutId = setTimeout(() => {
-              writeTimeoutFired = true
-              this.writeMessage = "Failed: No NFC card detected for writing within 10 seconds."
-              this.writeStatus = 'fail'
-              this.nfcBusy = false
-            }, 10000)
-
-            await ndef.write({records:[{recordType: "text", data: this.writeText}]})
-            if (writeTimeoutFired) return; // already marked after timeout
-
-            clearTimeout(timeoutId)
-            this.writeMessage = "Success: Data written to NFC card."
-            this.writeStatus = "success"
-            this.nfcBusy = false
-          } catch (err) {
-            if (!writeTimeoutFired) {
-              this.writeMessage = "Failed to write: " + (err.message || err)
-              this.writeStatus = 'fail'
-              this.nfcBusy = false
-            }
-          }
-        },
-        clearReadState() {
-          if(this.readerTimeout) clearTimeout(this.readerTimeout)
-          this.readData = null
-          this.readStatus = ''
-          this.readMessage = ''
-        },
-        clearWriteState() {
-          this.writeStatus = ''
-          this.writeMessage = ''
-        }
-      }
-    }).mount('#app')
-  </script>
+        }).mount('#app')
+    </script>
 </body>
 </html>
-<!-- write me code to do nfc read and write function. Make the ui looks good for web and android view. button on off reader then show the value that being readed. Also for write add input text to input manually put text data to put into nfc card. and button to trigger write . and give validation if it success or fail. if in 10 second there's no find card then give fail -->
