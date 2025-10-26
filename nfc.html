@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NFC Reader/Write</title>
+  <link rel="stylesheet" href="https://web-raker-deploy.vercel.app/all.css">
+  <style>
+    .card {
+      margin-top: 2rem;
+      max-width: 430px;
+      margin-left: auto;
+      margin-right: auto;
+      box-shadow: 0 0 16px rgba(60,60,60,0.07);
+      border-radius: 1rem;
+      background: #fff;
+      padding: 2rem 2rem 2.5rem 2rem;
+    }
+    .nfc-status {
+      font-weight: 600;
+      font-size: 1.10rem;
+      margin-bottom: 1rem;
+    }
+    .success {
+      color: green;
+      font-weight: bold;
+    }
+    .fail {
+      color: #c0392b;
+      font-weight: bold;
+    }
+    .mb-2 {
+      margin-bottom: 1.25rem;
+    }
+    .mb-1 {
+      margin-bottom: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="card">
+      <h2 class="mb-2 text-center">NFC Reader/Writer</h2>
+      
+      <div class="mb-2 text-center">
+        <button class="btn btn-dark" :class="{disabled: nfcBusy}" @click="toggleReader">
+          {{ readerActive ? 'Stop Reader' : 'Start Reader' }}
+        </button>
+      </div>
+      <div class="nfc-status mb-1" :class="{success: readStatus=='success', fail: readStatus=='fail'}" v-if="readMessage">
+        {{ readMessage }}
+      </div>
+      <div v-if="readerActive && !readMessage" class="mb-2 text-center text-muted">
+        {{ nfcInstruction }}
+      </div>
+      <div v-if="readData" class="alert alert-success mb-2">
+        <div><strong>Read Data:</strong></div>
+        <pre style="white-space: pre-wrap;word-break: break-all; margin: 0;">{{ readData }}</pre>
+      </div>
+      <div class="divider mb-2"></div>
+      <div>
+        <label for="textToWrite"><b>Text to Write to NFC Card</b></label>
+        <input class="form-control mb-1" id="textToWrite" v-model="writeText" type="text" placeholder="Enter text here"/>
+        <div class="mb-1 text-center">
+          <button class="btn btn-success" :class="{disabled: nfcBusy}" @click="writeToNFC">
+            Write to NFC
+          </button>
+        </div>
+        <div class="nfc-status mb-1" :class="{success: writeStatus=='success', fail: writeStatus=='fail'}" v-if="writeMessage">
+          {{ writeMessage }}
+        </div>
+      </div>
+    </div>
+  </div>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <script>
+    const { createApp } = Vue
+
+    createApp({
+      data() {
+        return {
+          readerActive: false,
+          nfcBusy: false,
+          nfcInstruction: 'Bring an NFC card near your device...',
+          readData: null,
+          readMessage: '',
+          readStatus: '',
+          writeText: '',
+          writeStatus: '',
+          writeMessage: '',
+          ndefReader: null,
+          readerTimeout: null
+        }
+      },
+      methods: {
+        async toggleReader() {
+          this.clearReadState()
+          this.readMessage = ''
+          this.readStatus = ''
+          this.readData = null
+          this.nfcInstruction = 'Bring an NFC card near your device...'
+          if (!('NDEFReader' in window)) {
+            this.readMessage = 'NFC is not supported on this device/browser.'
+            this.readStatus = 'fail'
+            return
+          }
+          
+          if (this.readerActive) {
+            // Stop listening
+            this.stopReading()
+          } else {
+            // Start NFC reading
+            try {
+              this.nfcBusy = true
+              this.ndefReader = new NDEFReader()
+              await this.ndefReader.scan()
+              this.readerActive = true
+
+              // Add event listeners
+              this.ndefReader.onreading = event => {
+                this.onNFCRead(event)
+              }
+              this.ndefReader.onreadingerror = err => {
+                this.readMessage = 'Error reading NFC card.'
+                this.readStatus = 'fail'
+                this.nfcBusy = false
+                this.stopReading()
+              }
+              // Set a 10s limit
+              this.readerTimeout = setTimeout(() => {
+                if (this.readerActive) {
+                  this.readMessage = "Failed: No NFC card detected within 10 seconds."
+                  this.readStatus = 'fail'
+                  this.nfcBusy = false
+                  this.stopReading()
+                }
+              }, 10000)
+            } catch (error) {
+              this.readMessage = "Could not start NFC scan: " + (error.message || error)
+              this.readStatus = 'fail'
+              this.readerActive = false
+              this.nfcBusy = false
+              this.ndefReader = null
+            }
+          }
+        },
+        stopReading() {
+          if (this.ndefReader && this.ndefReader.onreading) {
+            // There is no official stop() at the time, but toggling the event listener and busy flag serves UI logic.
+            this.ndefReader.onreading = null
+            this.ndefReader.onreadingerror = null
+          }
+          this.ndefReader = null
+          this.readerActive = false
+          this.nfcBusy = false
+          if (this.readerTimeout) {
+            clearTimeout(this.readerTimeout)
+            this.readerTimeout = null
+          }
+        },
+        onNFCRead(event) {
+          let message = ''
+          try {
+            const decoder = new TextDecoder()
+            if(event.message && event.message.records.length > 0) {
+              for (const record of event.message.records) {
+                if (record.recordType === "text") {
+                  message += decoder.decode(record.data) + "\n"
+                } else {
+                  message += `[${record.recordType}] ` + decoder.decode(record.data) + "\n"
+                }
+              }
+              this.readData = message.trim()
+              this.readMessage = 'Success: Data read from NFC card.'
+              this.readStatus = 'success'
+            } else {
+              this.readData = null
+              this.readMessage = 'NFC card found, but no textual data.'
+              this.readStatus = 'fail'
+            }
+          } catch (e) {
+            this.readData = null
+            this.readMessage = 'Error parsing NFC data.'
+            this.readStatus = 'fail'
+          }
+          this.nfcBusy = false
+          this.stopReading()
+        },
+        async writeToNFC() {
+          this.clearWriteState()
+          this.writeStatus = ''
+          this.writeMessage = ''
+          if (!this.writeText.trim()) {
+            this.writeMessage = 'Please enter text to write!'
+            this.writeStatus = 'fail'
+            return
+          }
+          if (!('NDEFReader' in window)) {
+            this.writeMessage = "NFC is not supported on this device/browser."
+            this.writeStatus = 'fail'
+            return
+          }
+
+          this.nfcBusy = true
+          let writeTimeoutFired = false
+
+          // wait for NFC card (similarly, 10s)
+          try {
+            const ndef = new NDEFReader()
+            let timeoutId = setTimeout(() => {
+              writeTimeoutFired = true
+              this.writeMessage = "Failed: No NFC card detected for writing within 10 seconds."
+              this.writeStatus = 'fail'
+              this.nfcBusy = false
+            }, 10000)
+
+            await ndef.write({records:[{recordType: "text", data: this.writeText}]})
+            if (writeTimeoutFired) return; // already marked after timeout
+
+            clearTimeout(timeoutId)
+            this.writeMessage = "Success: Data written to NFC card."
+            this.writeStatus = "success"
+            this.nfcBusy = false
+          } catch (err) {
+            if (!writeTimeoutFired) {
+              this.writeMessage = "Failed to write: " + (err.message || err)
+              this.writeStatus = 'fail'
+              this.nfcBusy = false
+            }
+          }
+        },
+        clearReadState() {
+          if(this.readerTimeout) clearTimeout(this.readerTimeout)
+          this.readData = null
+          this.readStatus = ''
+          this.readMessage = ''
+        },
+        clearWriteState() {
+          this.writeStatus = ''
+          this.writeMessage = ''
+        }
+      }
+    }).mount('#app')
+  </script>
+</body>
+</html>
+<!-- write me code to do nfc read and write function. Make the ui looks good for web and android view. button on off reader then show the value that being readed. Also for write add input text to input manually put text data to put into nfc card. and button to trigger write . and give validation if it success or fail. if in 10 second there's no find card then give fail -->
