@@ -404,6 +404,7 @@
                                 .then(response => {})
                                 .catch(error => {});
                                 this.readStatus = 'success'
+                                this.toggleReader()
                             } else {
                                 this.readMessage = 'Tag terbaca, tetapi data tidak lengkap atau format salah (Akses Ditolak).'
                                 this.readStatus = 'fail'
