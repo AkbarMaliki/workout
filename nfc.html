@@ -230,6 +230,8 @@
                     parsedReadData: null, // Parsed JSON data
                     readMessage: '',
                     readStatus: '', // 'success', 'fail', 'info'
+                    // Added for the 10s gate close timer
+                    afterSuccessTimer: null,
 
                     // Writer State
                     driverIdInput: '',
@@ -280,6 +282,13 @@
                 resetStates() {
                     // Stop any active NFC process
                     this.stopReading()
+
+                    // Stop any possible running timeout for gate-close
+                    if (this.afterSuccessTimer) {
+                        clearTimeout(this.afterSuccessTimer)
+                        this.afterSuccessTimer = null
+                    }
+
                     this.nfcBusy = false
                     
                     // Reset Read State
@@ -353,6 +362,10 @@
                         clearTimeout(this.readerTimeout)
                         this.readerTimeout = null
                     }
+                    if (this.afterSuccessTimer) {
+                        clearTimeout(this.afterSuccessTimer)
+                        this.afterSuccessTimer = null
+                    }
                     // Stop Vue state
                     this.readerActive = false
                     this.nfcBusy = false
@@ -404,7 +417,26 @@
                                 .then(response => {})
                                 .catch(error => {});
                                 this.readStatus = 'success'
-                                this.toggleReader()
+
+                                // Tambahan: tunggu 10 detik, lalu kirim gate=0, lalu siap scanning lagi
+                                this.readMessage = `Sukses! Akses disetujui untuk ${parsedData.driverId}. Gerbang akan menutup dalam 10 detik...`
+                                if (this.afterSuccessTimer) {
+                                    clearTimeout(this.afterSuccessTimer)
+                                }
+                                this.afterSuccessTimer = setTimeout(() => {
+                                    fetch('https://hasnur-b7714-default-rtdb.firebaseio.com/gate.json', {
+                                        method: 'PUT',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify(0)
+                                    })
+                                    .then(response => {})
+                                    .catch(error => {});
+                                    this.readMessage = "Gerbang ditutup. Siap scan tag NFC berikutnya...";
+                                    this.readStatus = 'info';
+                                    this.toggleReader();
+                                    this.afterSuccessTimer = null;
+                                }, 10000);
+
                             } else {
                                 this.readMessage = 'Tag terbaca, tetapi data tidak lengkap atau format salah (Akses Ditolak).'
                                 this.readStatus = 'fail'
@@ -426,6 +458,10 @@
 
                 resetReadState() {
                     if(this.readerTimeout) clearTimeout(this.readerTimeout)
+                    if(this.afterSuccessTimer) {
+                        clearTimeout(this.afterSuccessTimer)
+                        this.afterSuccessTimer = null
+                    }
                     this.readData = null
                     this.parsedReadData = null
                     this.readStatus = ''
