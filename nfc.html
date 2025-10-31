@@ -223,9 +223,8 @@
                     // Reader State
                     readerActive: false,
                     ndefReader: null,
-                    readerTimeout: null,
                     nfcInstruction: 'Dekatkan tag NFC akses ke perangkat...',
-                    
+
                     readData: null,
                     parsedReadData: null, // Parsed JSON data
                     readMessage: '',
@@ -274,23 +273,20 @@
                 changeView(view) {
                     this.resetStates()
                     this.currentView = view
-                    // Optional: Automatically start reader if entering reader view and supported
+                    // Auto start scan if on reader view
                     if (view === 'reader' && this.ndefReaderSupported) {
-                        this.toggleReader()
+                        this.startContinuousScan()
                     }
                 },
                 resetStates() {
-                    // Stop any active NFC process
                     this.stopReading()
-
-                    // Stop any possible running timeout for gate-close
                     if (this.afterSuccessTimer) {
                         clearTimeout(this.afterSuccessTimer)
                         this.afterSuccessTimer = null
                     }
 
                     this.nfcBusy = false
-                    
+
                     // Reset Read State
                     this.readerActive = false
                     this.readData = null
@@ -302,71 +298,67 @@
                     this.writeStatus = ''
                     this.writeMessage = ''
                 },
-                
+
                 // --- READER (GATE CONTROL) LOGIC ---
-                async toggleReader() {
+                startContinuousScan() {
+                    // Always try to stay in scan mode (scan again automatically)
                     if (!this.ndefReaderSupported) {
                         this.readMessage = 'NFC tidak didukung pada perangkat ini.'
                         this.readStatus = 'fail'
                         return
                     }
 
-                    this.resetReadState()
-                    
-                    if (this.readerActive) {
-                        this.stopReading()
-                        this.readMessage = 'Pembacaan dibatalkan.'
-                        this.readStatus = 'info'
-                    } else {
-                        // Start NFC reading
-                        try {
-                            this.nfcBusy = true
-                            this.ndefReader = new NDEFReader()
-                            await this.ndefReader.scan()
-                            this.readerActive = true
-                            this.readMessage = 'Siap. Dekatkan tag NFC...'
-                            this.readStatus = 'info'
+                    // If already scanning, do nothing
+                    if (this.readerActive) return;
 
-                            // Add event listeners
+                    this.resetReadState();
+
+                    this.nfcBusy = true;
+                    this.ndefReader = new NDEFReader();
+
+                    try {
+                        this.ndefReader.scan().then(() => {
+                            this.readerActive = true;
+                            this.readMessage = 'Siap. Dekatkan tag NFC...';
+                            this.readStatus = 'info';
+
                             this.ndefReader.onreading = event => {
-                                this.onNFCRead(event)
-                            }
+                                this.onNFCRead(event);
+                            };
                             this.ndefReader.onreadingerror = err => {
-                                this.readMessage = 'Kesalahan saat membaca tag: ' + (err.message || 'Tag tidak valid.')
-                                this.readStatus = 'fail'
-                                this.nfcBusy = false
-                                this.stopReading()
-                            }
-                            // Set a 15s limit
-                            this.readerTimeout = setTimeout(() => {
-                                if (this.readerActive) {
-                                    this.readMessage = "Gagal: Tag NFC tidak terdeteksi dalam 15 detik."
-                                    this.readStatus = 'fail'
-                                    this.nfcBusy = false
-                                    this.stopReading()
-                                }
-                            }, 15000)
-                        } catch (error) {
-                            this.readMessage = "Gagal memulai scan NFC: " + (error.message || error)
+                                this.readMessage = 'Kesalahan saat membaca tag: ' + (err.message || 'Tag tidak valid.');
+                                this.readStatus = 'fail';
+                                this.nfcBusy = false;
+                                // Tetap dalam scan mode!
+                                this.readerActive = false;
+                                setTimeout(() => this.startContinuousScan(), 400); // Slight delay to avoid too-rapid looping
+                            };
+                        }).catch(error => {
+                            this.readMessage = "Gagal memulai scan NFC: " + (error.message || error);
                             this.readStatus = 'fail'
                             this.readerActive = false
                             this.nfcBusy = false
                             this.ndefReader = null
-                        }
+                        });
+                    } catch (error) {
+                        this.readMessage = "Gagal memulai scan NFC: " + (error.message || error)
+                        this.readStatus = 'fail'
+                        this.readerActive = false
+                        this.nfcBusy = false
+                        this.ndefReader = null
                     }
                 },
 
+                toggleReader() {
+                    // Keep for compatibility/trigger, just call startContinuousScan
+                    this.startContinuousScan();
+                },
+
                 stopReading() {
-                    // Clear the timeout
-                    if (this.readerTimeout) {
-                        clearTimeout(this.readerTimeout)
-                        this.readerTimeout = null
-                    }
                     if (this.afterSuccessTimer) {
                         clearTimeout(this.afterSuccessTimer)
                         this.afterSuccessTimer = null
                     }
-                    // Stop Vue state
                     this.readerActive = false
                     this.nfcBusy = false
                     this.ndefReader = null // No official stop method, so we unset the object and listeners
@@ -374,8 +366,8 @@
 
                 onNFCRead(event) {
                     this.nfcBusy = false
-                    this.stopReading()
-                    
+                    this.readerActive = false
+
                     try {
                         const decoder = new TextDecoder()
                         let rawText = ''
@@ -433,13 +425,16 @@
                                     .catch(error => {});
                                     this.readMessage = "Gerbang ditutup. Siap scan tag NFC berikutnya...";
                                     this.readStatus = 'info';
-                                    this.toggleReader();
+                                    // Restart scan (selalu dalam proses scan)
+                                    this.startContinuousScan();
                                     this.afterSuccessTimer = null;
-                                }, 5000);
+                                }, 10000);
 
                             } else {
                                 this.readMessage = 'Tag terbaca, tetapi data tidak lengkap atau format salah (Akses Ditolak).'
                                 this.readStatus = 'fail'
+                                // Tetap dalam scan mode!
+                                setTimeout(() => this.startContinuousScan(), 400);
                             }
 
                         } else {
@@ -447,17 +442,18 @@
                             this.parsedReadData = null
                             this.readMessage = 'Tag NFC ditemukan, tetapi tidak berisi data teks (Akses Ditolak).'
                             this.readStatus = 'fail'
+                            setTimeout(() => this.startContinuousScan(), 400);
                         }
                     } catch (e) {
                         this.readData = null
                         this.parsedReadData = null
                         this.readMessage = 'Kesalahan pemrosesan data NFC.'
                         this.readStatus = 'fail'
+                        setTimeout(() => this.startContinuousScan(), 400);
                     }
                 },
 
                 resetReadState() {
-                    if(this.readerTimeout) clearTimeout(this.readerTimeout)
                     if(this.afterSuccessTimer) {
                         clearTimeout(this.afterSuccessTimer)
                         this.afterSuccessTimer = null
@@ -484,8 +480,7 @@
                     this.writeStatus = ''
                     this.writeMessage = 'Dekatkan tag NFC kosong atau dapat ditimpa untuk penulisan...'
                     this.nfcBusy = true
-                    let writeTimeoutFired = false
-                    
+
                     const dataToWrite = {
                         driverId: this.driverIdInput.trim(),
                         unit: this.unitNumberInput.trim()
@@ -495,34 +490,22 @@
 
                     try {
                         const ndef = new NDEFReader()
-                        let timeoutId = setTimeout(() => {
-                            writeTimeoutFired = true
-                            this.writeMessage = "Gagal: Tag NFC tidak terdeteksi untuk penulisan dalam 15 detik."
-                            this.writeStatus = 'fail'
-                            this.nfcBusy = false
-                        }, 15000)
-
-                        // NDEF write operation
+                        // Remove timeout (tidak ada gagal 15 detik untuk tulis)
                         await ndef.write({
                             records: [{
                                 recordType: "text", 
                                 data: textRecord
                             }]
                         })
-                        
-                        if (writeTimeoutFired) return; 
 
-                        clearTimeout(timeoutId)
                         this.writeMessage = "Sukses! Data Unit/Pengemudi telah ditulis ke tag NFC."
                         this.writeStatus = "success"
                         this.nfcBusy = false
 
                     } catch (err) {
-                        if (!writeTimeoutFired) {
-                            this.writeMessage = "Gagal Menulis: " + (err.message || "Pastikan tag dapat ditulisi.")
-                            this.writeStatus = 'fail'
-                            this.nfcBusy = false
-                        }
+                        this.writeMessage = "Gagal Menulis: " + (err.message || "Pastikan tag dapat ditulisi.")
+                        this.writeStatus = 'fail'
+                        this.nfcBusy = false
                     }
                 },
             }
