@@ -234,46 +234,30 @@
                     </button>
                 </div>
 
-                <!-- Status Feedback -->
-                <div v-if="readMessage" :class="{'status-success': readStatus === 'success', 'status-fail': readStatus === 'fail', 'status-info': readStatus === 'info'}" class="status-box mb-6">
-                    <i :class="readIcon" class="mr-2"></i> {{ readMessage }}
-                </div>
-                
-                <!-- BEGIN: Traffic Light Simulation For Scan Status -->
-                <div v-if="readerActive && !readMessage" class="flex flex-col items-center justify-center my-8">
+                <!-- Selalu tampilkan traffic light di tampilan "reader" -->
+                <div class="flex flex-col items-center justify-center my-8">
                     <div class="traffic-light-outer">
                         <span :class="['traffic-light-bulb', 'light-red', trafficLightState==='red'?'blinking':'', trafficLightState!=='red'?'off':'']"></span>
                         <span :class="['traffic-light-bulb', 'light-yellow', trafficLightState==='yellow'?'blinking':'', trafficLightState!=='yellow'?'off':'']"></span>
                         <span :class="['traffic-light-bulb', 'light-green', trafficLightState==='green'?'blinking':'', trafficLightState!=='green'?'off':'']"></span>
                     </div>
                     <div class="traffic-light-stand"></div>
-                    <div class="font-semibold text-gray-500 mt-3 text-center" style="letter-spacing:0.5px;">
+                    <div v-if="readerActive && !readMessage" class="font-semibold text-gray-500 mt-3 text-center" style="letter-spacing:0.5px;">
                         <span>Menunggu scan NFC...<br>{{ nfcInstruction }}</span>
                     </div>
-                </div>
-                <div v-else-if="readStatus === 'success'" class="flex flex-col items-center justify-center my-8">
-                    <div class="traffic-light-outer">
-                        <span :class="['traffic-light-bulb', 'light-red', trafficLightState==='red'?'blinking':'', trafficLightState!=='red'?'off':'']"></span>
-                        <span :class="['traffic-light-bulb', 'light-yellow', trafficLightState==='yellow'?'blinking':'', trafficLightState!=='yellow'?'off':'']"></span>
-                        <span :class="['traffic-light-bulb', 'light-green', trafficLightState==='green'?'blinking':'', trafficLightState!=='green'?'off':'']"></span>
-                    </div>
-                    <div class="traffic-light-stand"></div>
-                    <div class="font-semibold text-green-700 mt-3 text-center" style="letter-spacing:0.5px;">
+                    <div v-else-if="readStatus === 'success'" class="font-semibold text-green-700 mt-3 text-center" style="letter-spacing:0.5px;">
                         <span style="font-size:1.1em;">Akses NFC Berhasil</span>
                     </div>
-                </div>
-                <div v-else-if="readStatus === 'fail'" class="flex flex-col items-center justify-center my-8">
-                    <div class="traffic-light-outer">
-                        <span :class="['traffic-light-bulb', 'light-red', trafficLightState==='red'?'blinking':'', trafficLightState!=='red'?'off':'']"></span>
-                        <span :class="['traffic-light-bulb', 'light-yellow', trafficLightState==='yellow'?'blinking':'', trafficLightState!=='yellow'?'off':'']"></span>
-                        <span :class="['traffic-light-bulb', 'light-green', trafficLightState==='green'?'blinking':'', trafficLightState!=='green'?'off':'']"></span>
-                    </div>
-                    <div class="traffic-light-stand"></div>
-                    <div class="font-semibold text-red-700 mt-3 text-center" style="letter-spacing:0.5px;">
+                    <div v-else-if="readStatus === 'fail'" class="font-semibold text-red-700 mt-3 text-center" style="letter-spacing:0.5px;">
                         <span style="font-size:1.1em;">Akses NFC Gagal</span>
                     </div>
                 </div>
                 <!-- END: Traffic Light Simulation For Scan Status -->
+
+                <!-- Status Feedback -->
+                <div v-if="readMessage" :class="{'status-success': readStatus === 'success', 'status-fail': readStatus === 'fail', 'status-info': readStatus === 'info'}" class="status-box mb-6">
+                    <i :class="readIcon" class="mr-2"></i> {{ readMessage }}
+                </div>
 
                 <!-- Parsed Data Display -->
                 <div v-if="parsedReadData" class="mt-6 border-t pt-4">
