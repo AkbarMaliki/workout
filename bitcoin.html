@@ -184,7 +184,9 @@
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                 <!-- Current Price Display -->
                 <div>
-                    <label class="block text-sm font-medium text-gray-500">Harga BTC Saat Ini (USD)</label>
+                    <p class="text-xs mt-1 text-gray-500">
+                        *Terakhir di-fetch: {{ lastFetchedTime }} | Kurs USD/IDR (Fixed): Rp {{ formatNumber(usdToIdrRate) }}
+                    </p>
                     <div class="mt-1 flex rounded-md shadow-sm">
                         <input type="number" step="0.01" v-model="currentPriceInput" @keyup.enter="updateManualPrice"
                             class="flex-1 min-w-0 block w-full px-3 py-2 border border-gray-300 rounded-l-md focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors duration-300 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">
@@ -193,9 +195,7 @@
                             Update Manual
                         </button>
                     </div>
-                    <p class="text-xs mt-1 text-gray-500">
-                        *Terakhir di-fetch: {{ lastFetchedTime }} | Kurs USD/IDR (Fixed): Rp {{ formatNumber(usdToIdrRate) }}
-                    </p>
+                    
                 </div>
 
                 <!-- Target Percentage -->
@@ -270,6 +270,7 @@
                             <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Jml BTC</th>
                             <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Modal Beli (Rp)</th>
                             <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Target (USD)</th>
+                            <!-- <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Target (Rp)</th> -->
                             <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">P/L Nominal (Rp)</th>
                             <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Selisih (%) (Rp)</th>
                             <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Aksi</th>
@@ -277,7 +278,7 @@
                     </thead>
                     <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                         <tr v-if="activeList.length === 0">
-                            <td colspan="9" class="px-3 py-4 whitespace-nowrap text-sm text-gray-500 text-center">Belum ada transaksi aktif. Silakan tambahkan data.</td>
+                            <td colspan="10" class="px-3 py-4 whitespace-nowrap text-sm text-gray-500 text-center">Belum ada transaksi aktif. Silakan tambahkan data.</td>
                         </tr>
                         <tr v-for="trade in activeList" :key="trade.id" class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-150">
                             <td class="px-3 py-4 whitespace-nowrap text-xs text-gray-900 dark:text-gray-200">{{ trade.tanggal_beli }}</td>
@@ -286,6 +287,9 @@
                             <td class="px-3 py-4 whitespace-nowrap text-xs font-mono text-gray-900 dark:text-gray-200">{{ trade.btc_amount.toFixed(8) }}</td>
                             <td class="px-3 py-4 whitespace-nowrap text-xs text-gray-900 dark:text-gray-200">{{ formatCurrency(trade.uang_beli_idr, 'IDR') }}</td>
                             <td class="px-3 py-4 whitespace-nowrap text-xs text-gray-900 dark:text-gray-200" @click="copyData(trade.target_harga_usd)">{{ trade.target_harga_usd.toFixed(0) }}</td>
+                            <!-- <td class="px-3 py-4 whitespace-nowrap text-xs text-gray-900 dark:text-gray-200" @click="copyData(trade.trade_target_idr)">
+                                {{ formatCurrency(trade.trade_target_idr, 'IDR') }}
+                            </td> -->
                              <!-- NEW: P/L Nominal (Rp) -->
                             <td class="px-3 py-4 whitespace-nowrap text-xs font-bold" :class="getPLColor(trade.pl_percentage)">
                                 {{ formatCurrency(trade.pl_nominal_idr, 'IDR') }}
@@ -353,6 +357,7 @@
                             <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Jml BTC</th>
                             <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Modal Beli (Rp)</th>
                             <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Target (USD)</th>
+                            <!-- <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Target (Rp)</th> -->
                             <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Keuntungan ({{ currency }})</th>
                             <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">P/L % (Rp)</th>
                             <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Catatan</th>
@@ -361,7 +366,7 @@
                     </thead>
                     <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                         <tr v-if="historyList.length === 0">
-                            <td colspan="8" class="px-3 py-4 whitespace-nowrap text-sm text-gray-500 text-center">Belum ada transaksi di riwayat.</td>
+                            <td colspan="10" class="px-3 py-4 whitespace-nowrap text-sm text-gray-500 text-center">Belum ada transaksi di riwayat.</td>
                         </tr>
                         <tr v-for="trade in filteredHistory" :key="trade.id"
                             class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-150"
@@ -376,6 +381,7 @@
                             <td class="px-3 py-4 whitespace-nowrap text-xs font-mono text-gray-900 dark:text-gray-200">{{ trade.btc_amount.toFixed(8) }}</td>
                             <td class="px-3 py-4 whitespace-nowrap text-xs text-gray-900 dark:text-gray-200">{{ formatCurrency(trade.uang_beli_idr, 'IDR') }}</td>
                             <td class="px-3 py-4 whitespace-nowrap text-xs text-gray-900 dark:text-gray-200">{{ formatCurrency(trade.target_harga_usd, 'USD') }}</td>
+                            <!-- <td class="px-3 py-4 whitespace-nowrap text-xs text-gray-900 dark:text-gray-200">{{ formatCurrency(trade.trade_target_idr, 'IDR') }}</td> -->
                             <td class="px-3 py-4 whitespace-nowrap text-xs font-bold" :class="getPLColor(trade.profit_percentage)">
                                 {{ formatCurrency(convertPriceToDisplay(trade.profit_nominal_idr), currency) }}
                             </td>
@@ -639,7 +645,7 @@
                 copyData(data){
                     if (data !== undefined && data !== null) {
                         const input = document.createElement('textarea');
-                        input.value = data.toFixed(0);
+                        input.value = (typeof data === "number" ? data.toFixed(0) : data);
                         document.body.appendChild(input);
                         input.select();
                         try {
@@ -810,6 +816,7 @@
                 async updateActiveTrades() {
                     const updatedList = this.activeList.map(trade => {
                         trade.target_harga_usd = trade.harga_beli_bitcoin_usd * (1 + this.targetPercentage / 100);
+                        trade.trade_target_idr = trade.target_harga_usd * trade.btc_amount * this.usdToIdrRate;
                         const currentValueUSD = trade.btc_amount * this.currentPriceUSD;
                         const currentValueIDR = currentValueUSD * this.usdToIdrRate;
                         const plNominalIDR = currentValueIDR - trade.uang_beli_idr;
@@ -847,6 +854,7 @@
 
                     const btc_amount = this.calculateBTCAmount(uang_beli_idr, harga_beli_bitcoin_usd);
                     const target_harga_usd = harga_beli_bitcoin_usd * (1 + this.targetPercentage / 100);
+                    const trade_target_idr = target_harga_usd * btc_amount * this.usdToIdrRate;
 
                     const newTrade = {
                         id: Date.now(),
@@ -856,6 +864,7 @@
                         btc_amount: btc_amount,
                         catatan_strategi: catatan_strategi,
                         target_harga_usd: target_harga_usd,
+                        trade_target_idr: trade_target_idr,
                         pl_percentage: 0,
                         pl_nominal_idr: 0,
                         is_near_target: false,
