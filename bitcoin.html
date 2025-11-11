@@ -356,6 +356,7 @@
                             <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Keuntungan ({{ currency }})</th>
                             <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">P/L % (Rp)</th>
                             <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Catatan</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Aksi</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -383,6 +384,13 @@
                             </td>
                             <td class="px-3 py-4 whitespace-normal text-xs text-gray-500 dark:text-gray-400 max-w-xs">
                                 {{ trade.catatan_strategi.length > 50 ? trade.catatan_strategi.substring(0, 50) + '...' : trade.catatan_strategi }}
+                            </td>
+                            <td class="px-3 py-4 whitespace-normal text-xs text-gray-500 dark:text-gray-400 max-w-xs">
+                                <button @click="deleteHistory(trade.id)"
+                                    class="text-xs px-2 py-1 font-medium rounded-full text-red-600 hover:text-red-900 transition duration-150"
+                                    title="Hapus Transaksi">
+                                    Hapus
+                                </button>
                             </td>
                         </tr>
                     </tbody>
@@ -845,6 +853,16 @@
                         this.showNotification("Transaksi berhasil dihapus.", false);
                     }
                 },
+                async deleteHistory(id) {
+                    const deleteConfirmed = window.confirm("Apakah Anda yakin ingin menghapus transaksi ini?");
+                    if (deleteConfirmed) {
+                        this.historyList = this.historyList.filter(trade => trade.id !== id);
+                        await this.saveToFirebase();
+                        this.showNotification("Transaksi riwayat berhasil dihapus.", false);
+                        this.renderChart();
+                    }
+                },
+                
 
                 async moveToHistory(id) {
                     const tradeIndex = this.activeList.findIndex(trade => trade.id === id);
