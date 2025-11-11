@@ -282,7 +282,7 @@
                             <td class="px-3 py-4 whitespace-nowrap text-xs font-bold" :class="getPLColor(trade.pl_percentage)">{{ formatCurrency(currentPriceUSD, 'USD') }}</td>
                             <td class="px-3 py-4 whitespace-nowrap text-xs font-mono text-gray-900 dark:text-gray-200">{{ trade.btc_amount.toFixed(8) }}</td>
                             <td class="px-3 py-4 whitespace-nowrap text-xs text-gray-900 dark:text-gray-200">{{ formatCurrency(trade.uang_beli_idr, 'IDR') }}</td>
-                            <td class="px-3 py-4 whitespace-nowrap text-xs text-gray-900 dark:text-gray-200">{{ trade.target_harga_usd.toFixed(0) }}</td>
+                            <td class="px-3 py-4 whitespace-nowrap text-xs text-gray-900 dark:text-gray-200" @click="copyData(trade.target_harga_usd)">{{ trade.target_harga_usd.toFixed(0) }}</td>
                              <!-- NEW: P/L Nominal (Rp) -->
                             <td class="px-3 py-4 whitespace-nowrap text-xs font-bold" :class="getPLColor(trade.pl_percentage)">
                                 {{ formatCurrency(trade.pl_nominal_idr, 'IDR') }}
@@ -626,6 +626,28 @@
             // 3. METHODS (Actions and Functions)
             // ----------------------------------------------------
             methods: {
+                copyData(data){
+                    if (data !== undefined && data !== null) {
+                        // Buat elemen textarea sementara
+                        const input = document.createElement('textarea');
+                        input.value = data.toFixed(0);
+                        document.body.appendChild(input);
+                        input.select();
+                        try {
+                            const successful = document.execCommand('copy');
+                            if (successful) {
+                                this.showNotification("Tercopy ke clipboard! (Ctrl + V untuk paste)", false);
+                            } else {
+                                this.showNotification("Copy ke clipboard gagal.", true);
+                            }
+                        } catch (err) {
+                            this.showNotification("Copy ke clipboard gagal.", true);
+                        }
+                        document.body.removeChild(input);
+                    } else {
+                        this.showNotification("Data kosong, tidak bisa copy.", true);
+                    }
+                },
                 // --- Utility Methods ---
                 showNotification(message, isError = false) {
                     this.notification.message = message;
