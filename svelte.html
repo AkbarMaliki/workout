@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Svelte CDN Example (Vue-like)</title>
+  <script type="module">
+    import { compile, compileCss, run } from "https://esm.run/svelte@4/compiler";
+
+    // Mirip dengan Vue.createApp({
+    const app = `
+      <script>
+        let count = 0;
+        const inc = () => count += 1;
+      <\/script>
+
+      <style>
+        button {
+          padding: 8px 16px;
+          border: none;
+          border-radius: 6px;
+          background: #3b82f6;
+          color: white;
+          font-size: 1rem;
+          cursor: pointer;
+        }
+        button:hover {
+          background: #2563eb;
+        }
+      <\/style>
+
+      <main>
+        <h1>Hello Svelte 🎯</h1>
+        <p>Count: {count}</p>
+        <button on:click={inc}>+ Increment</button>
+      </main>
+    `;
+
+    const { js, css } = compile(app, { generate: "dom", css: true });
+    const style = document.createElement("style");
+    style.textContent = css.code;
+    document.head.appendChild(style);
+
+    const Component = run(js.code);
+    new Component({ target: document.body });
+  </script>
+</head>
+<body></body>
+</html>
