@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bitcoin Tracker Pro - Portofolio & Keuntungan</title>
+    <!-- Load Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Vue.js CDN (3.x) -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- Load ApexCharts CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+
+    <style>
+        /* Menggunakan font Inter untuk tampilan profesional */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fc; /* Abu-abu lembut */
+        }
+        .text-green-600 { color: #10b981; }
+        .text-red-600 { color: #ef4444; }
+        .text-yellow-600 { color: #f59e0b; }
+        .card {
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+        }
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+        }
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.6);
+            transition: opacity 0.3s ease;
+        }
+        /* Dark Mode Styling */
+        body.dark {
+            background-color: #1f2937;
+            color: #f3f4f6;
+        }
+        .dark .bg-white { background-color: #374151; }
+        .dark .text-gray-900 { color: #f3f4f6; }
+        .dark .bg-gray-100 { background-color: #4b5563; }
+        .dark input, .dark textarea, .dark select {
+            background-color: #4b5563;
+            border-color: #6b7280;
+            color: #f3ff46;
+        }
+        .dark table {
+            border-color: #4b5563;
+        }
+        /* Responsive Table adjustments for smaller screens */
+        @media (max-width: 640px) {
+            .table-header-mobile {
+                display: none; /* Sembunyikan header asli di mobile */
+            }
+            .table-cell-responsive {
+                display: block;
+                padding-top: 0.5rem;
+                padding-bottom: 0.5rem;
+                text-align: right;
+                border-bottom: 1px solid #e5e7eb;
+            }
+            .table-row-group > tr {
+                margin-bottom: 1rem;
+                display: block;
+                border: 1px solid #e5e7eb;
+                border-radius: 0.5rem;
+                padding: 0.5rem;
+            }
+            .table-cell-responsive::before {
+                content: attr(data-label);
+                float: left;
+                font-weight: 600;
+                text-transform: uppercase;
+                font-size: 0.75rem;
+                color: #6b7280;
+            }
+            /* Override to keep table structure simple for demonstration */
+        }
+    </style>
+</head>
+<body id="app" class="transition-colors duration-300">
+
+    <div class="container mx-auto p-4 sm:p-6 lg:p-8">
+        <!-- Header & Control Panel -->
+        <header class="mb-8 p-4 bg-white shadow-lg rounded-xl transition-colors duration-300 card">
+            <h1 class="text-3xl font-bold text-gray-900 mb-4 transition-colors duration-300">
+                💰 Bitcoin Portfolio Tracker Pro
+            </h1>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                <!-- Current Price Display -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-500">Harga BTC Saat Ini (USD)</label>
+                    <div class="mt-1 flex rounded-md shadow-sm">
+                        <input type="number" step="0.01" v-model="currentPriceInput" @keyup.enter="updateManualPrice"
+                            class="flex-1 min-w-0 block w-full px-3 py-2 border border-gray-300 rounded-l-md focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors duration-300 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">
+                        <button @click="updateManualPrice"
+                            class="inline-flex items-center px-4 py-2 border border-l-0 border-gray-300 bg-blue-500 text-white text-sm font-medium rounded-r-md hover:bg-blue-600 focus:outline-none transition ease-in-out duration-150">
+                            Update Manual
+                        </button>
+                    </div>
+                    <p class="text-xs mt-1 text-gray-500">
+                        *Terakhir di-fetch: {{ lastFetchedTime }} | Kurs USD/IDR (Fixed): Rp {{ formatNumber(usdToIdrRate) }}
+                    </p>
+                </div>
+
+                <!-- Target Percentage -->
+                <div>
+                    <label for="target-percent" class="block text-sm font-medium text-gray-500">Target Keuntungan (%)</label>
+                    <div class="mt-1 flex rounded-md shadow-sm">
+                        <input id="target-percent" type="number" step="1" min="1" max="1000" v-model="targetPercentageInput"
+                            @change="updateTargetPercentage"
+                            class="flex-1 min-w-0 block w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors duration-300 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">
+                    </div>
+                </div>
+
+                <!-- Currency & Dark Mode Toggle -->
+                <div class="flex flex-row space-x-4">
+                    <button @click="switchCurrency"
+                        class="px-4 py-2 w-full text-lg font-bold rounded-lg shadow-md focus:outline-none transition ease-in-out duration-150"
+                        :class="[currency === 'IDR' ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200']">
+                        Mata Uang Tampilan: {{ currency }}
+                    </button>
+                    <!-- Dark Mode Toggle -->
+                    <div class="flex items-center justify-end">
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" v-model="darkMode" class="sr-only peer">
+                            <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+                            <span class="ms-3 text-sm font-medium text-gray-900 dark:text-gray-300">Dark</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Portfolio Summary Cards -->
+        <section class="mb-8 grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div v-for="(card, index) in portfolioCards" :key="index"
+                class="card bg-white p-5 rounded-xl border-l-4"
+                :class="[card.colorClass, card.borderColor]">
+                <p class="text-xs sm:text-sm font-medium text-gray-500 truncate">{{ card.title }}</p>
+                <p class="mt-1 text-base sm:text-2xl font-semibold transition-colors duration-300"
+                    :class="card.colorClass">
+                    <template v-if="card.isBtc">
+                        {{ card.value.toFixed(8) }} BTC
+                    </template>
+                    <template v-else>
+                        {{ formatCurrency(card.value, currency) }}
+                    </template>
+                </p>
+            </div>
+        </section>
+
+        <!-- Main Action and Lists -->
+        <section class="mb-8">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-gray-100 transition-colors duration-300">
+                    Daftar Transaksi Aktif
+                </h2>
+                <button @click="openAddModal"
+                    class="px-3 sm:px-5 py-2 bg-blue-600 text-white text-sm sm:text-base font-medium rounded-lg shadow-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition ease-in-out duration-150">
+                    + Tambah Data
+                </button>
+            </div>
+
+            <!-- Active Trades Table (with overflow-x-auto for responsiveness) -->
+            <div class="overflow-x-auto bg-white p-2 sm:p-4 rounded-xl shadow-lg card">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Tgl Beli</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Beli BTC (USD)</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Current BTC (USD)</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Jml BTC</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Modal Beli (Rp)</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Target (USD)</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">P/L Nominal (Rp)</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Selisih (%) (Rp)</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        <tr v-if="activeList.length === 0">
+                            <td colspan="9" class="px-3 py-4 whitespace-nowrap text-sm text-gray-500 text-center">Belum ada transaksi aktif. Silakan tambahkan data.</td>
+                        </tr>
+                        <tr v-for="trade in activeList" :key="trade.id" class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-150">
+                            <td class="px-3 py-4 whitespace-nowrap text-xs text-gray-900 dark:text-gray-200">{{ trade.tanggal_beli }}</td>
+                            <td class="px-3 py-4 whitespace-nowrap text-xs text-gray-900 dark:text-gray-200">{{ formatCurrency(trade.harga_beli_bitcoin_usd, 'USD') }}</td>
+                            <td class="px-3 py-4 whitespace-nowrap text-xs font-bold" :class="getPLColor(trade.pl_percentage)">{{ formatCurrency(currentPriceUSD, 'USD') }}</td>
+                            <td class="px-3 py-4 whitespace-nowrap text-xs font-mono text-gray-900 dark:text-gray-200">{{ trade.btc_amount.toFixed(8) }}</td>
+                            <td class="px-3 py-4 whitespace-nowrap text-xs text-gray-900 dark:text-gray-200">{{ formatCurrency(trade.uang_beli_idr, 'IDR') }}</td>
+                            <td class="px-3 py-4 whitespace-nowrap text-xs text-gray-900 dark:text-gray-200">{{ formatCurrency(trade.target_harga_usd, 'USD') }}</td>
+                             <!-- NEW: P/L Nominal (Rp) -->
+                            <td class="px-3 py-4 whitespace-nowrap text-xs font-bold" :class="getPLColor(trade.pl_percentage)">
+                                {{ formatCurrency(trade.pl_nominal_idr, 'IDR') }}
+                            </td>
+                            <!-- P/L Percentage -->
+                            <td class="px-3 py-4 whitespace-nowrap text-xs" :class="getPLColor(trade.pl_percentage)">
+                                <span class="font-bold">{{ trade.pl_percentage.toFixed(2) }}%</span>
+                                <span v-if="trade.is_near_target" class="ml-1 text-yellow-500 font-bold" title="Mendekati 90% target">⚠️</span>
+                            </td>
+                            <td class="px-3 py-4 whitespace-nowrap text-xs font-medium space-x-1">
+                                <button @click="moveToHistory(trade.id)"
+                                    class="text-xs px-2 py-1 font-medium rounded-full bg-blue-500 text-white hover:bg-blue-600 transition duration-150"
+                                    title="Pindahkan ke Riwayat (Tercapai)">
+                                    Jual
+                                </button>
+                                <button @click="deleteTrade(trade.id)"
+                                    class="text-xs px-2 py-1 font-medium rounded-full text-red-600 hover:text-red-900 transition duration-150"
+                                    title="Hapus Transaksi">
+                                    Hapus
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Chart Section -->
+        <section class="mb-8 p-4 bg-white rounded-xl shadow-lg card">
+            <h2 class="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-4 transition-colors duration-300">
+                Grafik Profit/Loss Harian (History)
+            </h2>
+            <div class="flex space-x-4 mb-4">
+                <div>
+                    <label for="filter-year" class="block text-sm font-medium text-gray-500">Tahun</label>
+                    <select id="filter-year" v-model="filter.year" @change="filterHistory"
+                        class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
+                        <option value="">Semua</option>
+                        <option v-for="year in availableYears" :key="year" :value="year">{{ year }}</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="filter-month" class="block text-sm font-medium text-gray-500">Bulan</label>
+                    <select id="filter-month" v-model="filter.month" @change="filterHistory"
+                        class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200">
+                        <option value="">Semua</option>
+                        <option v-for="(name, index) in monthNames" :key="index" :value="index + 1">{{ name }}</option>
+                    </select>
+                </div>
+            </div>
+            <div id="daily-chart"></div>
+        </section>
+
+        <!-- History Trades Table -->
+        <section class="mb-8">
+            <h2 class="text-xl sm:text-2xl font-semibold text-gray-900 dark:text-gray-100 mb-4 transition-colors duration-300">
+                Riwayat Transaksi (Tercapai)
+            </h2>
+            <div class="overflow-x-auto bg-white p-2 sm:p-4 rounded-xl shadow-lg card">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50 dark:bg-gray-700">
+                        <tr>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Tgl Beli/Jual</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Harga Beli/Jual (USD)</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Jml BTC</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Modal Beli (Rp)</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Target (USD)</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Keuntungan ({{ currency }})</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">P/L % (Rp)</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Catatan</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                        <tr v-if="historyList.length === 0">
+                            <td colspan="8" class="px-3 py-4 whitespace-nowrap text-sm text-gray-500 text-center">Belum ada transaksi di riwayat.</td>
+                        </tr>
+                        <tr v-for="trade in filteredHistory" :key="trade.id"
+                            class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-150"
+                            :class="{ 'bg-green-50/50 dark:bg-green-900/20': trade.profit_percentage > 5 }">
+                            <td class="px-3 py-4 whitespace-nowrap text-xs text-gray-900 dark:text-gray-200">
+                                B: {{ trade.tanggal_beli }} <br> J: {{ trade.tanggal_jual }}
+                            </td>
+                            <td class="px-3 py-4 whitespace-nowrap text-xs text-gray-900 dark:text-gray-200">
+                                B: {{ formatCurrency(trade.harga_beli_bitcoin_usd, 'USD') }}<br>
+                                J: {{ formatCurrency(trade.harga_jual_bitcoin_usd, 'USD') }}
+                            </td>
+                            <td class="px-3 py-4 whitespace-nowrap text-xs font-mono text-gray-900 dark:text-gray-200">{{ trade.btc_amount.toFixed(8) }}</td>
+                            <td class="px-3 py-4 whitespace-nowrap text-xs text-gray-900 dark:text-gray-200">{{ formatCurrency(trade.uang_beli_idr, 'IDR') }}</td>
+                            <td class="px-3 py-4 whitespace-nowrap text-xs text-gray-900 dark:text-gray-200">{{ formatCurrency(trade.target_harga_usd, 'USD') }}</td>
+                            <td class="px-3 py-4 whitespace-nowrap text-xs font-bold" :class="getPLColor(trade.profit_percentage)">
+                                {{ formatCurrency(convertPriceToDisplay(trade.profit_nominal_idr), currency) }}
+                            </td>
+                            <td class="px-3 py-4 whitespace-nowrap text-xs font-bold" :class="getPLColor(trade.profit_percentage)">
+                                {{ trade.profit_percentage.toFixed(2) }}%
+                            </td>
+                            <td class="px-3 py-4 whitespace-normal text-xs text-gray-500 dark:text-gray-400 max-w-xs">
+                                {{ trade.catatan_strategi.length > 50 ? trade.catatan_strategi.substring(0, 50) + '...' : trade.catatan_strategi }}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Add Data Modal -->
+        <div v-if="showAddModal" @click.self="closeAddModal" class="fixed inset-0 z-50 overflow-y-auto modal-overlay flex items-center justify-center">
+            <div @click.stop class="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-2xl w-full max-w-lg mx-4 transition-all duration-300 scale-100 opacity-100">
+                <h3 class="text-xl font-semibold mb-4 text-gray-900 dark:text-gray-100">Tambah Transaksi Pembelian Bitcoin</h3>
+                <form @submit.prevent="addData">
+                    <!-- Harga Beli Bitcoin (USD) -->
+                    <div class="mb-4">
+                        <label for="harga_beli" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Harga Beli Bitcoin (USD) - *Auto ambil dari harga live</label>
+                        <input type="number" step="0.01" id="harga_beli" v-model.number="formData.harga_beli_bitcoin_usd" required
+                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">
+                    </div>
+
+                    <!-- Uang Beli (IDR) -->
+                    <div class="mb-4">
+                        <label for="uang_beli" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Modal Beli (Rp)</label>
+                        <input type="number" step="0.01" id="uang_beli" v-model.number="formData.uang_beli_idr" required
+                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">
+                    </div>
+
+                    <!-- Jumlah BTC (Dihitung Otomatis) -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Jumlah BTC Otomatis</label>
+                        <p class="mt-1 text-lg font-mono text-blue-600 dark:text-blue-400">
+                            {{ calculateBTCAmount(formData.uang_beli_idr, formData.harga_beli_bitcoin_usd).toFixed(8) }} BTC
+                        </p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">*Berdasarkan Kurs USD/IDR: Rp {{ formatNumber(usdToIdrRate) }}</p>
+                    </div>
+
+                    <!-- Tanggal Beli -->
+                    <div class="mb-4">
+                        <label for="tanggal_beli" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal Beli</label>
+                        <input type="date" id="tanggal_beli" v-model="formData.tanggal_beli"
+                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">
+                    </div>
+
+                    <!-- Catatan Strategi -->
+                    <div class="mb-6">
+                        <label for="catatan" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Catatan Strategi (Opsional)</label>
+                        <textarea id="catatan" v-model="formData.catatan_strategi" rows="3"
+                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100"></textarea>
+                    </div>
+
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" @click="closeAddModal"
+                            class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 transition duration-150 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-700">
+                            Batal
+                        </button>
+                        <button type="submit"
+                            class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition duration-150">
+                            Simpan Transaksi
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Notification Box -->
+        <div v-if="notification.show"
+             class="fixed bottom-4 right-4 p-4 rounded-lg shadow-xl text-white transition-opacity duration-300"
+             :class="notification.isError ? 'bg-red-500' : 'bg-green-500'"
+             style="z-index: 60;">
+            {{ notification.message }}
+        </div>
+
+    </div>
+
+    <script>
+        const { createApp, ref, computed, onMounted, watch } = Vue;
+
+        createApp({
+            // ----------------------------------------------------
+            // 1. DATA (State Management)
+            // ----------------------------------------------------
+            data() {
+                return {
+                    // Core Data
+                    activeList: [],
+                    historyList: [],
+                    
+                    // Price & Currency Settings
+                    currentPriceUSD: 0, // Harga BTC saat ini (di-fetch dari API)
+                    currentPriceInput: 0, // Harga BTC untuk input manual
+                    targetPercentage: 10, // Target default 10%
+                    targetPercentageInput: 10, // Input target percentage
+                    usdToIdrRate: 15000, // FIXED IDR/USD rate (placeholder)
+                    currency: 'IDR', // Mata uang tampilan ('IDR' atau 'USD')
+                    lastFetchedTime: 'Belum pernah di-fetch',
+                    fetchInterval: null, // Untuk menyimpan ID interval auto-fetch
+
+                    // UI State
+                    showAddModal: false,
+                    formData: {
+                        harga_beli_bitcoin_usd: null, // Harga beli BTC (USD)
+                        uang_beli_idr: null, // Uang beli (IDR)
+                        tanggal_beli: new Date().toISOString().slice(0, 10),
+                        catatan_strategi: ''
+                    },
+                    notification: {
+                        show: false,
+                        message: '',
+                        isError: false
+                    },
+                    darkMode: false,
+
+                    // Filtering & Chart
+                    filter: {
+                        year: '',
+                        month: ''
+                    },
+                    monthNames: ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"],
+                    chart: null,
+                };
+            },
+
+            // ----------------------------------------------------
+            // 2. COMPUTED (Derived State)
+            // ----------------------------------------------------
+            computed: {
+                // Harga BTC saat ini dalam mata uang IDR (untuk perhitungan internal P/L)
+                currentPriceIDR() {
+                    return this.currentPriceUSD * this.usdToIdrRate;
+                },
+
+                // Total Modal Aktif (dalam IDR)
+                totalActiveModal() {
+                    return this.activeList.reduce((sum, trade) => sum + trade.uang_beli_idr, 0);
+                },
+
+                // Nilai Portofolio Aktif Saat Ini (dalam IDR, dikonversi ke mata uang tampilan)
+                currentPortfolioValue() {
+                    let totalValueIDR = this.activeList.reduce((sum, trade) => {
+                        // Current Value IDR = BTC Amount * Current Price IDR
+                        return sum + (trade.btc_amount * this.currentPriceIDR);
+                    }, 0);
+                    return this.convertPriceToDisplay(totalValueIDR);
+                },
+
+                // Total P/L Bersih untuk Portfolio Aktif (dalam IDR, dikonversi ke mata uang tampilan)
+                totalActiveProfitLoss() {
+                    let totalPLIDR = this.activeList.reduce((sum, trade) => {
+                        // totalPLIDR = Current Value IDR - Initial Cost IDR
+                        return sum + (trade.btc_amount * this.currentPriceIDR - trade.uang_beli_idr);
+                    }, 0);
+                    return this.convertPriceToDisplay(totalPLIDR);
+                },
+
+                // Total BTC Dimiliki
+                totalBTCHeld() {
+                    return this.activeList.reduce((sum, trade) => sum + trade.btc_amount, 0);
+                },
+
+                // Total P/L Bersih (History)
+                totalProfitLossHistory() {
+                    const totalProfitLossIDR = this.historyList.reduce((sum, trade) => sum + trade.profit_nominal_idr, 0);
+                    return this.convertPriceToDisplay(totalProfitLossIDR);
+                },
+
+                // Portfolio Summary Cards Data
+                portfolioCards() {
+                    const totalProfitLossDisplay = this.totalActiveProfitLoss;
+
+                    return [
+                        { title: 'Total Modal Aktif (Rp)', value: this.convertPriceToDisplay(this.totalActiveModal), colorClass: 'text-blue-600', borderColor: 'border-blue-600' },
+                        { title: 'Nilai Sekarang', value: this.currentPortfolioValue, colorClass: totalProfitLossDisplay >= 0 ? 'text-green-600' : 'text-red-600', borderColor: totalProfitLossDisplay >= 0 ? 'border-green-600' : 'border-red-600' },
+                        { title: 'Total P/L Aktif (Rp)', value: totalProfitLossDisplay, colorClass: totalProfitLossDisplay >= 0 ? 'text-green-600' : 'text-red-600', borderColor: totalProfitLossDisplay >= 0 ? 'border-green-600' : 'border-red-600' },
+                        { title: 'Total BTC Dimiliki', value: this.totalBTCHeld, colorClass: 'text-indigo-600', borderColor: 'border-indigo-600', isBtc: true },
+                        { title: 'Total P/L Riwayat', value: this.totalProfitLossHistory, colorClass: this.totalProfitLossHistory >= 0 ? 'text-green-600' : 'text-red-600', borderColor: this.totalProfitLossHistory >= 0 ? 'border-green-600' : 'border-red-600' },
+                    ];
+                },
+
+                // Filtered History for Table
+                filteredHistory() {
+                    return this.historyList.filter(trade => {
+                        const tradeDate = new Date(trade.tanggal_jual);
+                        const tradeYear = tradeDate.getFullYear().toString();
+                        const tradeMonth = (tradeDate.getMonth() + 1).toString();
+
+                        const yearMatch = !this.filter.year || tradeYear === this.filter.year;
+                        const monthMatch = !this.filter.month || tradeMonth === this.filter.month;
+
+                        return yearMatch && monthMatch;
+                    }).sort((a, b) => new Date(b.tanggal_jual) - new Date(a.tanggal_jual));
+                },
+
+                // Available Years for Filter
+                availableYears() {
+                    const years = new Set(this.historyList.map(trade => new Date(trade.tanggal_jual).getFullYear().toString()));
+                    return Array.from(years).sort().reverse();
+                },
+
+                // Chart Data for ApexCharts
+                chartData() {
+                    const dailyProfits = {};
+
+                    // 1. Agregasi P/L per hari (menggunakan IDR yang tersimpan)
+                    this.filteredHistory.forEach(trade => {
+                        const dateKey = trade.tanggal_jual;
+                        const profitNominal = trade.profit_nominal_idr; // Sudah dalam IDR
+
+                        if (!dailyProfits[dateKey]) {
+                            dailyProfits[dateKey] = 0;
+                        }
+                        dailyProfits[dateKey] += profitNominal;
+                    });
+
+                    // 2. Format untuk ApexCharts
+                    const sortedDates = Object.keys(dailyProfits).sort();
+                    const seriesData = sortedDates.map(date => {
+                        // Konversi ke mata uang tampilan
+                        return this.convertPriceToDisplay(dailyProfits[date]);
+                    });
+
+                    return {
+                        categories: sortedDates,
+                        series: [{
+                            name: `Profit/Loss Harian (${this.currency})`,
+                            data: seriesData
+                        }]
+                    };
+                }
+            },
+
+            // ----------------------------------------------------
+            // 3. METHODS (Actions and Functions)
+            // ----------------------------------------------------
+            methods: {
+                // --- Utility Methods ---
+                showNotification(message, isError = false) {
+                    this.notification.message = message;
+                    this.notification.isError = isError;
+                    this.notification.show = true;
+                    setTimeout(() => {
+                        this.notification.show = false;
+                    }, 3000);
+                },
+
+                formatCurrency(value, curr) {
+                    // Cek jika ini adalah BTC amount, kembalikan saja nilai.
+                    if (typeof value === 'object' && value.isBtc) {
+                        return `${value.value.toFixed(8)} BTC`;
+                    }
+                    
+                    if (curr === 'IDR') {
+                        // Pastikan format mata uang Rupiah
+                        return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(value);
+                    }
+                    if (curr === 'USD') {
+                        // Pastikan format mata uang USD
+                        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+                    }
+                    return value; // Fallback
+                },
+
+                formatNumber(value) {
+                    return new Intl.NumberFormat('id-ID').format(value);
+                },
+
+                // Mengonversi nilai IDR (internal) ke mata uang tampilan (IDR/USD)
+                convertPriceToDisplay(idrValue) {
+                    if (this.currency === 'USD') {
+                        return idrValue / this.usdToIdrRate;
+                    }
+                    return idrValue;
+                },
+
+                getPLColor(percentage) {
+                    if (percentage >= 0) {
+                        return 'text-green-600 dark:text-green-400';
+                    }
+                    return 'text-red-600 dark:text-red-400';
+                },
+
+                // Menghitung jumlah BTC berdasarkan modal IDR dan harga beli USD (menggunakan kurs tetap)
+                calculateBTCAmount(uangBeliIDR, hargaBeliUSD) {
+                    if (uangBeliIDR && hargaBeliUSD && hargaBeliUSD > 0) {
+                        const idrPriceAtBuy = hargaBeliUSD * this.usdToIdrRate;
+                        return uangBeliIDR / idrPriceAtBuy;
+                    }
+                    return 0;
+                },
+
+                // --- Persistence Methods ---
+                saveLocal() {
+                    try {
+                        localStorage.setItem('btc_active_list_v2', JSON.stringify(this.activeList));
+                        localStorage.setItem('btc_history_list_v2', JSON.stringify(this.historyList));
+                        localStorage.setItem('btc_currency', this.currency);
+                        localStorage.setItem('btc_target_percent', this.targetPercentage);
+                        localStorage.setItem('btc_dark_mode', this.darkMode);
+                    } catch (e) {
+                        console.error("Gagal menyimpan ke localStorage", e);
+                    }
+                },
+
+                loadLocal() {
+                    try {
+                        const active = localStorage.getItem('btc_active_list_v2');
+                        const history = localStorage.getItem('btc_history_list_v2');
+                        const currency = localStorage.getItem('btc_currency');
+                        const target = localStorage.getItem('btc_target_percent');
+                        const dark = localStorage.getItem('btc_dark_mode');
+
+                        if (active) this.activeList = JSON.parse(active);
+                        if (history) this.historyList = JSON.parse(history);
+                        if (currency) this.currency = currency;
+                        if (target) {
+                            this.targetPercentage = parseFloat(target);
+                            this.targetPercentageInput = parseFloat(target);
+                        }
+                        if (dark) {
+                             this.darkMode = dark === 'true';
+                             document.body.classList.toggle('dark', this.darkMode);
+                        }
+
+                    } catch (e) {
+                        console.error("Gagal memuat dari localStorage", e);
+                        this.showNotification("Gagal memuat data dari penyimpanan lokal.", true);
+                    }
+                },
+
+                // --- API & Update Methods ---
+                async fetchBitcoinPrice() {
+                    try {
+                        const url = 'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=USD';
+                        const response = await fetch(url);
+                        const data = await response.json();
+                        
+                        if (data.bitcoin && data.bitcoin.usd) {
+                            this.currentPriceUSD = data.bitcoin.usd;
+                            this.currentPriceInput = data.bitcoin.usd; // Update input field
+                            this.lastFetchedTime = new Date().toLocaleTimeString('id-ID');
+                            this.showNotification(`Harga BTC berhasil di-update: $${this.currentPriceUSD.toFixed(2)}`, false);
+                            // Recalculate active list data
+                            this.updateActiveTrades();
+                        } else {
+                            throw new Error("Data harga tidak valid dari API.");
+                        }
+                    } catch (e) {
+                        console.error("Gagal fetch harga Bitcoin:", e);
+                        this.showNotification("Gagal fetch harga Bitcoin dari CoinGecko.", true);
+                        // Fallback: use a static value if API fails for the first time
+                        if (this.currentPriceUSD === 0) {
+                             this.currentPriceUSD = 65000; // Harga fallback USD
+                             this.currentPriceInput = 65000;
+                             this.lastFetchedTime = `FALLBACK (${new Date().toLocaleTimeString('id-ID')})`;
+                        }
+                        this.updateActiveTrades();
+                    }
+                },
+
+                updateManualPrice() {
+                    const newPrice = parseFloat(this.currentPriceInput);
+                    if (isNaN(newPrice) || newPrice <= 0) {
+                        this.showNotification("Harga manual harus berupa angka positif.", true);
+                        return;
+                    }
+                    this.currentPriceUSD = newPrice;
+                    this.lastFetchedTime = `MANUAL (${new Date().toLocaleTimeString('id-ID')})`;
+                    this.updateActiveTrades();
+                    this.showNotification(`Harga BTC diperbarui manual: $${this.currentPriceUSD.toFixed(2)}`, false);
+                },
+
+                updateTargetPercentage() {
+                    const newTarget = parseFloat(this.targetPercentageInput);
+                    if (isNaN(newTarget) || newTarget < 0) {
+                        this.showNotification("Target persentase harus angka non-negatif.", true);
+                        this.targetPercentageInput = this.targetPercentage; // revert
+                        return;
+                    }
+                    this.targetPercentage = newTarget;
+                    this.updateActiveTrades();
+                    this.saveLocal();
+                    this.showNotification(`Target keuntungan diperbarui menjadi ${newTarget}%`, false);
+                },
+
+                updateActiveTrades() {
+                    const updatedList = this.activeList.map(trade => {
+                        // 1. Target Harga USD
+                        trade.target_harga_usd = trade.harga_beli_bitcoin_usd * (1 + this.targetPercentage / 100);
+
+                        // 2. Current Value Calculation (IDR based on live USD price)
+                        const currentValueUSD = trade.btc_amount * this.currentPriceUSD;
+                        const currentValueIDR = currentValueUSD * this.usdToIdrRate;
+
+                        // 3. Hitung P/L Nominal (IDR)
+                        // P/L = Current IDR Value - Initial IDR Cost
+                        const plNominalIDR = currentValueIDR - trade.uang_beli_idr;
+                        trade.pl_nominal_idr = plNominalIDR; // <-- Simpan P/L Nominal IDR
+
+                        // 4. Hitung P/L Persentase (IDR Cost)
+                        trade.pl_percentage = (plNominalIDR / trade.uang_beli_idr) * 100;
+
+                        // 5. Cek Status Mendekati Target (90% target)
+                        const targetDifference = trade.target_harga_usd - trade.harga_beli_bitcoin_usd;
+                        const currentDifference = this.currentPriceUSD - trade.harga_beli_bitcoin_usd;
+                        
+                        // Cek apakah harga saat ini sudah mencapai 90% dari selisih ke target
+                        trade.is_near_target = currentDifference >= (targetDifference * 0.9);
+
+                        return trade;
+                    });
+                    this.activeList = updatedList;
+                    this.saveLocal();
+                },
+
+                // --- Trade Management Methods ---
+                openAddModal() {
+                    // Reset form data and set default date and current BTC price (USD)
+                    this.formData = {
+                        harga_beli_bitcoin_usd: this.currentPriceUSD,
+                        uang_beli_idr: null,
+                        tanggal_beli: new Date().toISOString().slice(0, 10),
+                        catatan_strategi: ''
+                    };
+                    this.showAddModal = true;
+                },
+
+                closeAddModal() {
+                    this.showAddModal = false;
+                },
+
+                addData() {
+                    const { harga_beli_bitcoin_usd, uang_beli_idr, tanggal_beli, catatan_strategi } = this.formData;
+
+                    if (!harga_beli_bitcoin_usd || !uang_beli_idr || harga_beli_bitcoin_usd <= 0 || uang_beli_idr <= 0) {
+                        this.showNotification("Harga BTC dan Modal Beli harus diisi dengan angka positif.", true);
+                        return;
+                    }
+
+                    const btc_amount = this.calculateBTCAmount(uang_beli_idr, harga_beli_bitcoin_usd);
+                    const target_harga_usd = harga_beli_bitcoin_usd * (1 + this.targetPercentage / 100);
+
+                    const newTrade = {
+                        id: Date.now(), // Unique ID
+                        tanggal_beli: tanggal_beli,
+                        harga_beli_bitcoin_usd: harga_beli_bitcoin_usd, // Stored in USD
+                        uang_beli_idr: uang_beli_idr, // Stored in IDR (Modal)
+                        btc_amount: btc_amount,
+                        catatan_strategi: catatan_strategi,
+                        target_harga_usd: target_harga_usd, // Stored in USD
+                        // Properti yang akan dihitung di updateActiveTrades
+                        pl_percentage: 0,
+                        pl_nominal_idr: 0, // NEW: Initial nominal P/L IDR
+                        is_near_target: false,
+                    };
+
+                    this.activeList.unshift(newTrade);
+                    this.updateActiveTrades(); // Hitung nilai awal
+                    this.saveLocal();
+                    this.closeAddModal();
+                    this.showNotification("Transaksi pembelian baru berhasil ditambahkan.", false);
+                },
+
+                deleteTrade(id) {
+                    // Simple confirm modal replacement
+                    const deleteConfirmed = window.confirm("Apakah Anda yakin ingin menghapus transaksi ini?");
+                    if (deleteConfirmed) {
+                        this.activeList = this.activeList.filter(trade => trade.id !== id);
+                        this.saveLocal();
+                        this.showNotification("Transaksi berhasil dihapus.", false);
+                    }
+                },
+
+                moveToHistory(id) {
+                    const tradeIndex = this.activeList.findIndex(trade => trade.id === id);
+                    if (tradeIndex === -1) return;
+
+                    const trade = this.activeList[tradeIndex];
+
+                    // Data Jual
+                    const hargaJualUSD = this.currentPriceUSD;
+                    const currentValueUSD = trade.btc_amount * hargaJualUSD;
+                    const currentValueIDR = currentValueUSD * this.usdToIdrRate;
+
+                    // Perhitungan P/L (berbasis IDR Modal)
+                    const profitNominalIDR = currentValueIDR - trade.uang_beli_idr;
+                    const profitPercentage = (profitNominalIDR / trade.uang_beli_idr) * 100;
+
+                    const historyTrade = {
+                        ...trade,
+                        tanggal_jual: new Date().toISOString().slice(0, 10),
+                        harga_jual_bitcoin_usd: hargaJualUSD,
+                        profit_nominal_idr: profitNominalIDR, // P/L nominal dalam IDR
+                        profit_percentage: profitPercentage, // P/L persentase berdasarkan IDR
+                    };
+
+                    // Pindahkan
+                    this.historyList.unshift(historyTrade);
+                    this.activeList.splice(tradeIndex, 1);
+
+                    // Simpan dan update chart
+                    this.saveLocal();
+                    this.renderChart();
+                    this.showNotification(`Transaksi berhasil dipindahkan ke riwayat. Keuntungan: ${this.formatCurrency(this.convertPriceToDisplay(profitNominalIDR), this.currency)}`, false);
+                },
+
+                // --- UI & Filter Methods ---
+                switchCurrency() {
+                    this.currency = this.currency === 'IDR' ? 'USD' : 'IDR';
+                    this.saveLocal();
+                    this.renderChart(); // Perlu render ulang grafik karena label/data berubah
+                    this.showNotification(`Mata uang tampilan diubah menjadi ${this.currency}`, false);
+                },
+
+                filterHistory() {
+                    this.renderChart();
+                },
+
+                // --- Chart Methods ---
+                renderChart() {
+                    const chartData = this.chartData;
+                    const chartElement = document.getElementById('daily-chart');
+
+                    if (chartData.categories.length === 0) {
+                        if (this.chart) this.chart.destroy();
+                        chartElement.innerHTML = '<p class="text-center py-10 text-gray-500 dark:text-gray-400">Tidak ada data riwayat untuk ditampilkan di grafik (P/L dihitung dalam IDR).</p>';
+                        return;
+                    }
+
+                    const chartOptions = {
+                        series: chartData.series,
+                        chart: {
+                            type: 'bar',
+                            height: 350,
+                            toolbar: { show: true },
+                            animations: { enabled: true }
+                        },
+                        plotOptions: {
+                            bar: {
+                                horizontal: false,
+                                columnWidth: '55%',
+                                endingShape: 'rounded'
+                            },
+                        },
+                        dataLabels: { enabled: false },
+                        stroke: { show: true, width: 2, colors: ['transparent'] },
+                        xaxis: {
+                            categories: chartData.categories,
+                            title: { text: 'Tanggal Jual' }
+                        },
+                        yaxis: {
+                            title: { text: `Total P/L (${this.currency})` },
+                            labels: {
+                                formatter: (val) => this.formatCurrency(val, this.currency).replace(/^(Rp|\$)/, '') // Hilangkan simbol mata uang
+                            }
+                        },
+                        fill: { opacity: 1 },
+                        tooltip: {
+                            y: {
+                                formatter: (val) => this.formatCurrency(val, this.currency)
+                            }
+                        },
+                        colors: ['#3b82f6'], // Biru lembut
+                    };
+
+                    if (this.chart) {
+                        this.chart.updateOptions(chartOptions);
+                    } else {
+                        chartElement.innerHTML = ''; // Pastikan bersih
+                        this.chart = new ApexCharts(chartElement, chartOptions);
+                        this.chart.render();
+                    }
+                },
+
+                // --- Dark Mode Handler ---
+                toggleDarkMode() {
+                    document.body.classList.toggle('dark', this.darkMode);
+                    this.saveLocal();
+                }
+
+            },
+
+            // ----------------------------------------------------
+            // 4. MOUNTED (Initialization)
+            // ----------------------------------------------------
+            mounted() {
+                // 1. Load Data dari LocalStorage
+                this.loadLocal();
+
+                // 2. Set Dark Mode Listener
+                watch(() => this.darkMode, this.toggleDarkMode);
+
+                // 3. Setup Auto-Fetch
+                // (Mulai fetch pertama kali)
+                this.fetchBitcoinPrice();
+                // (Set interval 60 detik)
+                this.fetchInterval = setInterval(this.fetchBitcoinPrice, 60000);
+
+                // 4. Inisialisasi Chart Watcher
+                // Gunakan watch untuk memicu renderChart saat data atau filter berubah
+                watch(() => this.chartData, () => this.renderChart(), { deep: true });
+                watch(() => this.currency, () => this.renderChart());
+
+                // 5. Render Chart setelah data dimuat
+                this.$nextTick(() => {
+                    this.renderChart();
+                });
+
+                // 6. Cleanup interval saat komponen unmount (praktik baik)
+                this.unmounted = () => {
+                    clearInterval(this.fetchInterval);
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
