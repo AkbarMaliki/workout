@@ -214,7 +214,6 @@
 
                 <!-- Currency & Dark Mode Toggle -->
                 <div class="flex flex-row space-x-4">
-                
                     <!-- Dark Mode Toggle -->
                     <div class="flex items-center justify-end">
                         <label class="relative inline-flex items-center cursor-pointer">
@@ -236,7 +235,7 @@
                     <p class="text-xs sm:text-sm font-medium text-gray-500 truncate">{{ card.title }}</p>
                     <p class="mt-1 text-base sm:text-2xl font-semibold transition-colors duration-300"
                         :class="card.colorClass">
-                        {{ formatCurrency(card.value, currency) }}
+                        {{ formatCurrency(card.value, currency) }}  <span v-if="card.convert">/ {{formatCurrency(card.convert,'IDR')}}</span>
                     </p>
                 </div>
             </div>
@@ -260,27 +259,37 @@
                     <thead class="bg-gray-50 dark:bg-gray-700">
                         <tr>
                             <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Tgl Beli</th>
-                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Beli BTC (USD)</th>
-                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Current BTC (USD)</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Beli BTC </th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Current BTC </th>
                             <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Modal Beli </th>
-                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Target (USD)</th>
-                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">P/L Nominal </th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Pajak</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Target (BTC)</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Potential Untung </th>
+                            <!-- <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Untung/Rugi (Sebelum Pajak)</th> -->
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Untung/Rugi Setelah Pajak</th>
                             <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Selisih (%)</th>
                             <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Aksi</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                         <tr v-if="activeList.length === 0">
-                            <td colspan="8" class="px-3 py-4 whitespace-nowrap text-sm text-gray-500 text-center">Belum ada transaksi aktif. Silakan tambahkan data.</td>
+                            <td colspan="11" class="px-3 py-4 whitespace-nowrap text-sm text-gray-500 text-center">Belum ada transaksi aktif. Silakan tambahkan data.</td>
                         </tr>
                         <tr v-for="trade in activeList" :key="trade.id" class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-150">
                             <td class="px-3 py-4 whitespace-nowrap text-xs text-gray-900 dark:text-gray-200">{{ trade.tanggal_beli }}</td>
                             <td class="px-3 py-4 whitespace-nowrap text-xs text-gray-900 dark:text-gray-200">{{ formatCurrency(trade.harga_beli_bitcoin_usd, 'USD') }}</td>
                             <td class="px-3 py-4 whitespace-nowrap text-xs font-bold" :class="getPLColor(trade.pl_percentage)">{{ formatCurrency(currentPriceUSD, 'USD') }}</td>
                             <td class="px-3 py-4 whitespace-nowrap text-xs text-gray-900 dark:text-gray-200">{{ formatCurrency(trade.uang_beli_idr, 'IDR') }}</td>
-                            <td class="px-3 py-4 whitespace-nowrap text-xs text-gray-900 dark:text-gray-200" @click="copyData(trade.target_harga_usd)">{{ trade.target_harga_usd.toFixed(0) }}</td>
-                            <td class="px-3 py-4 whitespace-nowrap text-xs font-bold" :class="getPLColor(trade.pl_percentage)">
+                            <td class="px-3 py-4 whitespace-nowrap text-xs text-gray-900 dark:text-gray-200">{{ formatCurrency(trade.pajak, 'IDR') }}</td>
+                            <td class="px-3 py-4 whitespace-nowrap text-xs text-blue-900  dark:text-gray-200" style="font-weight: bold;" @click="copyData(trade.target_harga_usd)">{{ trade.target_harga_usd.toFixed(0) }}</td>
+                            <td class="px-3 py-4 whitespace-nowrap text-xs text-gray-900 dark:text-gray-200">
+                                {{formatCurrency(trade.potential_target - trade.pajak, 'USD')}} /   {{formatCurrency(( (trade.potential_target - trade.uang_beli_idr) - trade.pajak) * 16000, 'USD')}}
+                            </td>
+                            <!-- <td class="px-3 py-4 whitespace-nowrap text-xs font-bold" :class="getPLColor(trade.pl_percentage)">
                                 {{ formatCurrency(trade.pl_nominal_idr, 'IDR') }}
+                            </td> -->
+                            <td class="px-3 py-4 whitespace-nowrap text-xs font-bold" :class="getPLColor(trade.pl_after_tax)">
+                                {{ formatCurrency(trade.pl_after_tax, 'IDR') }} / {{formatCurrency(trade.pl_after_tax * 16000, 'IDR')}}
                             </td>
                             <td class="px-3 py-4 whitespace-nowrap text-xs" :class="getPLColor(trade.pl_percentage)">
                                 <span class="font-bold">{{ trade.pl_percentage.toFixed(2) }}%</span>
@@ -342,8 +351,10 @@
                             <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Tgl Beli/Jual</th>
                             <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Harga Beli/Jual (USD)</th>
                             <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Modal Beli </th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Pajak</th>
                             <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Target (USD)</th>
                             <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Keuntungan </th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Keuntungan Setelah Pajak</th>
                             <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">P/L %</th>
                             <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Catatan</th>
                             <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Aksi</th>
@@ -351,7 +362,7 @@
                     </thead>
                     <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                         <tr v-if="historyList.length === 0">
-                            <td colspan="8" class="px-3 py-4 whitespace-nowrap text-sm text-gray-500 text-center">Belum ada transaksi di riwayat.</td>
+                            <td colspan="10" class="px-3 py-4 whitespace-nowrap text-sm text-gray-500 text-center">Belum ada transaksi di riwayat.</td>
                         </tr>
                         <tr v-for="trade in filteredHistory" :key="trade.id"
                             class="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors duration-150"
@@ -364,9 +375,13 @@
                                 J: {{ formatCurrency(trade.harga_jual_bitcoin_usd, 'USD') }}
                             </td>
                             <td class="px-3 py-4 whitespace-nowrap text-xs text-gray-900 dark:text-gray-200">{{ formatCurrency(trade.uang_beli_idr, 'IDR') }}</td>
+                            <td class="px-3 py-4 whitespace-nowrap text-xs text-gray-900 dark:text-gray-200">{{ formatCurrency(trade.pajak, 'IDR') }}</td>
                             <td class="px-3 py-4 whitespace-nowrap text-xs text-gray-900 dark:text-gray-200">{{ formatCurrency(trade.target_harga_usd, 'USD') }}</td>
                             <td class="px-3 py-4 whitespace-nowrap text-xs font-bold" :class="getPLColor(trade.profit_percentage)">
                                 {{ formatCurrency(trade.profit_nominal_idr, 'IDR') }}
+                            </td>
+                            <td class="px-3 py-4 whitespace-nowrap text-xs font-bold" :class="getPLColor(trade.profit_percentage)">
+                                {{ formatCurrency(trade.profit_after_tax, 'IDR') }}
                             </td>
                             <td class="px-3 py-4 whitespace-nowrap text-xs font-bold" :class="getPLColor(trade.profit_percentage)">
                                 {{ trade.profit_percentage.toFixed(2) }}%
@@ -393,6 +408,14 @@
                             </span>
                         </span>
                     </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">Total Profit Setelah Pajak:</span>
+                        <span>
+                            <span class="font-bold text-lg">
+                                {{ formatCurrency(filteredHistory.reduce((sum, trade) => sum + (trade.profit_after_tax || 0), 0), 'IDR') }}
+                            </span>
+                        </span>
+                    </div>
                 </div>
             </div>
         </section>
@@ -413,6 +436,13 @@
                     <div class="mb-4">
                         <label for="uang_beli" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Modal Beli </label>
                         <input type="number" step="0.01" id="uang_beli" v-model.number="formData.uang_beli_idr" required
+                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">
+                    </div>
+
+                    <!-- Pajak -->
+                    <div class="mb-4">
+                        <label for="pajak" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Pajak</label>
+                        <input type="number" step="0.01" id="pajak" v-model.number="formData.pajak" required
                             class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-100">
                     </div>
 
@@ -519,6 +549,7 @@
                     formData: {
                         harga_beli_bitcoin_usd: null,
                         uang_beli_idr: null,
+                        pajak: 0,
                         tanggal_beli: new Date().toISOString().slice(0, 10),
                         catatan_strategi: ''
                     },
@@ -545,17 +576,17 @@
                 },
                 totalActiveProfitLoss() {
                     // Sum all pl_nominal_idr which is profit(%) x modal
-                    return this.activeList.reduce((sum, trade) => sum + trade.pl_nominal_idr, 0);
+                    return this.activeList.reduce((sum, trade) => sum + trade.pl_nominal_idr - trade.pajak, 0);
                 },
                 totalProfitLossHistory() {
-                    return this.historyList.reduce((sum, trade) => sum + trade.profit_nominal_idr, 0);
+                    return this.historyList.reduce((sum, trade) => sum + trade.profit_nominal_idr - (trade.pajak ?? 0), 0);
                 },
                 portfolioCards() {
                     const totalPL = this.totalActiveProfitLoss;
                     return [
                         { title: 'Total Modal Aktif ', value: this.totalActiveModal, colorClass: 'text-blue-600', borderColor: 'border-blue-600' },
-                        { title: 'Total P/L Aktif ', value: totalPL, colorClass: totalPL >= 0 ? 'text-green-600' : 'text-red-600', borderColor: totalPL >= 0 ? 'border-green-600' : 'border-red-600' },
-                        { title: 'Total P/L Riwayat', value: this.totalProfitLossHistory, colorClass: this.totalProfitLossHistory >= 0 ? 'text-green-600' : 'text-red-600', borderColor: this.totalProfitLossHistory >= 0 ? 'border-green-600' : 'border-red-600' },
+                        { title: 'Total P/L Aktif ', value: totalPL, convert:totalPL * 16000, colorClass: totalPL >= 0 ? 'text-green-600' : 'text-red-600', borderColor: totalPL >= 0 ? 'border-green-600' : 'border-red-600' },
+                        { title: 'Total P/L Riwayat', value: this.totalProfitLossHistory, convert:this.totalProfitLossHistory * 16000, colorClass: this.totalProfitLossHistory >= 0 ? 'text-green-600' : 'text-red-600', borderColor: this.totalProfitLossHistory >= 0 ? 'border-green-600' : 'border-red-600' },
                     ];
                 },
                 filteredHistory() {
@@ -734,15 +765,20 @@
                     this.activeList = this.activeList.map(trade => {
                         const buyPrice = trade.harga_beli_bitcoin_usd;
                         const currentPrice = this.currentPriceUSD;
+                        const pajak = Number(trade.pajak) || 0;
                         // % selisih harga
                         const priceDiffPerc = ((currentPrice - buyPrice) / buyPrice) * 100;
                         trade.pl_percentage = priceDiffPerc;
-                        // P/L Nominal = persentase x modal (bukan nilai BTC)
+                        // P/L Nominal
                         trade.pl_nominal_idr = trade.uang_beli_idr * (priceDiffPerc / 100);
                         trade.target_harga_usd = buyPrice * (1 + this.targetPercentage / 100);
+                        trade.potential_target = trade.uang_beli_idr * (1 + this.targetPercentage / 100);
                         const targetDifference = trade.target_harga_usd - trade.harga_beli_bitcoin_usd;
                         const currentDifference = currentPrice - trade.harga_beli_bitcoin_usd;
                         trade.is_near_target = currentDifference >= (targetDifference * 0.9);
+
+                        // P/L setelah pajak (profit nominal - pajak)
+                        trade.pl_after_tax = trade.pl_nominal_idr - pajak;
                         return trade;
                     });
                     await this.saveToFirebase();
@@ -752,6 +788,7 @@
                     this.formData = {
                         harga_beli_bitcoin_usd: this.currentPriceUSD,
                         uang_beli_idr: null,
+                        pajak: 0,
                         tanggal_beli: new Date().toISOString().slice(0, 10),
                         catatan_strategi: ''
                     };
@@ -762,7 +799,7 @@
                 },
 
                 async addData() {
-                    const { harga_beli_bitcoin_usd, uang_beli_idr, tanggal_beli, catatan_strategi } = this.formData;
+                    const { harga_beli_bitcoin_usd, uang_beli_idr, pajak, tanggal_beli, catatan_strategi } = this.formData;
 
                     if (!harga_beli_bitcoin_usd || !uang_beli_idr || harga_beli_bitcoin_usd <= 0 || uang_beli_idr <= 0) {
                         this.showNotification("Harga BTC dan Modal Beli harus diisi dengan angka positif.", true);
@@ -774,15 +811,20 @@
                     const priceDiffPerc = ((currentPrice - buyPrice) / buyPrice) * 100;
                     const target_harga_usd = buyPrice * (1 + this.targetPercentage / 100);
 
+                    const pl_nominal_idr = uang_beli_idr * (priceDiffPerc / 100);
+                    const safePajak = Number(pajak) || 0;
+
                     const newTrade = {
                         id: Date.now(),
                         tanggal_beli: tanggal_beli,
                         harga_beli_bitcoin_usd: buyPrice,
                         uang_beli_idr: uang_beli_idr,
+                        pajak: safePajak,
                         catatan_strategi: catatan_strategi,
                         target_harga_usd: target_harga_usd,
                         pl_percentage: priceDiffPerc,
-                        pl_nominal_idr: uang_beli_idr * (priceDiffPerc / 100),
+                        pl_nominal_idr: pl_nominal_idr,
+                        pl_after_tax: pl_nominal_idr - safePajak,
                         is_near_target: false,
                     };
 
@@ -810,7 +852,6 @@
                         this.renderChart();
                     }
                 },
-                
 
                 async moveToHistory(id) {
                     const tradeIndex = this.activeList.findIndex(trade => trade.id === id);
@@ -819,14 +860,18 @@
                     const trade = this.activeList[tradeIndex];
 
                     const hargaJualUSD = this.currentPriceUSD;
+                    const pajak = Number(trade.pajak) || 0;
                     const priceDiff = ((hargaJualUSD - trade.harga_beli_bitcoin_usd) / trade.harga_beli_bitcoin_usd) * 100;
                     const profitNominalIDR = trade.uang_beli_idr * (priceDiff / 100);
+
+                    const profitAfterTax = profitNominalIDR - pajak;
 
                     const historyTrade = {
                         ...trade,
                         tanggal_jual: new Date().toISOString().slice(0, 10),
                         harga_jual_bitcoin_usd: hargaJualUSD,
                         profit_nominal_idr: profitNominalIDR,
+                        profit_after_tax: profitAfterTax,
                         profit_percentage: priceDiff,
                     };
 
@@ -835,7 +880,7 @@
 
                     await this.saveToFirebase();
                     this.renderChart();
-                    this.showNotification(`Transaksi berhasil dipindahkan ke riwayat. Keuntungan: ${this.formatCurrency(profitNominalIDR, 'IDR')}`, false);
+                    this.showNotification(`Transaksi berhasil dipindahkan ke riwayat. Keuntungan: ${this.formatCurrency(profitNominalIDR, 'IDR')}, setelah pajak: ${this.formatCurrency(profitAfterTax, 'IDR')}`, false);
                 },
 
                 filterHistory() {
