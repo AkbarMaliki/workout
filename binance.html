@@ -78,6 +78,11 @@
       pointer-events: none;
       opacity: 0.95;
     }
+    /* Style for negative (minus) values */
+    .negative {
+      color: #c81d1d !important;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -101,16 +106,22 @@
       </thead>
       <tbody>
         <tr v-for="target in targetList" :key="target">
-          <td>{{ target.toFixed(1) }}</td>
+          <td :class="{ negative: target < 0 }">{{ target.toFixed(1) }}</td>
           <td
             class="copyable"
             @click="copyToClipboard(getTargetResult(target).price.toFixed(2), target)"
           >
-            {{ getTargetResult(target).price.toFixed(2) }}
+            <span :class="{ negative: getTargetResult(target).price < hargaBeli }">
+              {{ getTargetResult(target).price.toFixed(2) }}
+            </span>
             <span v-if="copiedIdx === target" class="copied-msg">Disalin!</span>
           </td>
-          <td>{{ getTargetResult(target).profitUSDT.toFixed(2) }}</td>
-          <td>{{ getTargetResult(target).profitIDR.toLocaleString() }}</td>
+          <td :class="{ negative: getTargetResult(target).profitUSDT < 0 }">
+            {{ getTargetResult(target).profitUSDT.toFixed(2) }}
+          </td>
+          <td :class="{ negative: getTargetResult(target).profitIDR < 0 }">
+            {{ getTargetResult(target).profitIDR.toLocaleString() }}
+          </td>
         </tr>
       </tbody>
     </table>
@@ -129,7 +140,7 @@
           hargaBeli: '',
           fee: 0.001, // 0.1% fee Binance beli/jual
           kursIDR: 16000,
-          targetList: [0.1, 0.2, 0.3, 0.4, 0.5,0.6,0.7,0.8,0.9,1],
+          targetList: [-0.4,-0.3,-0.2,-0.1,0.1, 0.2, 0.3, 0.4, 0.5,0.6,0.7,0.8,0.9,1],
           copiedText: '',
           copiedIdx: null,
           showCopiedAlert: false,
