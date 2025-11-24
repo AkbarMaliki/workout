@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kalkulator Target Bitcoin Bersih</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .calculator {
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      width: 350px;
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      margin: 6px 0 12px 0;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #45a049;
+    }
+    .result {
+      margin-top: 15px;
+      background: #e8f5e9;
+      padding: 10px;
+      border-radius: 5px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <div id="app" class="calculator">
+    <h2>Kalkulator Target Bitcoin Bersih</h2>
+    
+    <label>Modal (USDT):</label>
+    <input type="number" v-model.number="modal" placeholder="Masukkan modal">
+
+    <label>Harga Beli Bitcoin (USD):</label>
+    <input type="number" v-model.number="hargaBeli" placeholder="Masukkan harga beli">
+
+    <label>Target Profit Bersih (%):</label>
+    <input type="number" v-model.number="targetPercent" placeholder="Masukkan target %">
+
+    <button @click="hitungTarget">Hitung Target Harga</button>
+
+    <div class="result" v-if="targetPrice">
+      Target Harga Bitcoin: <br>
+      <span style="font-size: 18px;">{{ targetPrice.toFixed(2) }} USD</span>
+      <br><br>
+      Profit Bersih: {{ profitUSDT.toFixed(2) }} USDT
+      <br>
+      Profit Bersih: {{ profitIDR.toLocaleString() }} IDR
+    </div>
+  </div>
+
+  <script>
+    const { createApp } = Vue;
+
+    createApp({
+      data() {
+        return {
+          modal: 1797,
+          hargaBeli: 85984.79,
+          targetPercent: 0.5,
+          fee: 0.001, // 0.1% fee Binance beli/jual
+          targetPrice: null,
+          profitUSDT: null,
+          profitIDR: null,
+          kursIDR: 16000
+        }
+      },
+      methods: {
+        hitungTarget() {
+          // 1️⃣ Hitung profit bersih dalam USDT
+          this.profitUSDT = this.modal * (this.targetPercent / 100);
+
+          // 2️⃣ Hitung jumlah BTC yang dibeli setelah fee beli
+          const btc = (this.modal / this.hargaBeli) * (1 - this.fee);
+
+          // 3️⃣ Hitung target harga bersih setelah fee jual
+          this.targetPrice = (this.modal + this.profitUSDT) / (btc * (1 - this.fee));
+
+          // 4️⃣ Hitung profit dalam Rupiah
+          this.profitIDR = this.profitUSDT * this.kursIDR;
+        }
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
