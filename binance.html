@@ -1,202 +1,294 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kalkulator Target Bitcoin Bersih</title>
-  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f4f4f4;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-    }
-    .calculator {
-      background: #fff;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      width: 430px;
-    }
-    input {
-      width: 100%;
-      padding: 8px;
-      margin: 6px 0 12px 0;
-      border-radius: 5px;
-      border: 1px solid #ccc;
-      box-sizing: border-box;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 15px;
-      background: #e8f5e9;
-      border-radius: 5px;
-      overflow: hidden;
-    }
-    th, td {
-      padding: 8px 5px;
-      text-align: right;
-      font-size: 15px;
-    }
-    th {
-      background: #e0e0e0;
-      color: #333;
-      font-weight: bold;
-    }
-    td:first-child, th:first-child {
-      text-align: left;
-    }
-    tr:nth-child(even) td {
-      background: #f3f8f3;
-    }
-    .copyable {
-      cursor: pointer;
-      color: #006400;
-      font-weight: bold;
-      position: relative;
-      transition: background 0.2s;
-    }
-    .copyable:hover {
-      background: #b1e7b3;
-    }
-    .copied-msg {
-      color: #388e3c;
-      font-size: 12px;
-      margin-left: 6px;
-      position: absolute;
-      right: 10px;
-      top: 2px;
-      background: #e0ffd7;
-      border-radius: 5px;
-      padding: 1px 4px;
-      z-index: 1;
-      font-weight: normal;
-      pointer-events: none;
-      opacity: 0.95;
-    }
-    /* Style for negative (minus) values */
-    .negative {
-      color: #c81d1d !important;
-      font-weight: bold;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Binance Futures P&L Simulator</title>
+    <!-- Load Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Vue 3 via CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        /* Custom font for a modern look */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb; /* Light background */
+        }
+        .text-green-500 { color: #10b981; }
+        .text-red-500 { color: #ef4444; }
+        .maker-color { background-color: #ecfdf5; }
+        .taker-color { background-color: #f0f9ff; }
+    </style>
 </head>
 <body>
-  <div id="app" class="calculator">
-    <h2>Kalkulator Target Bitcoin Bersih</h2>
-    
-    <label>Modal (USDT):</label>
-    <input type="number" v-model.number="modal" placeholder="Masukkan modal">
 
-    <label>Harga Beli Bitcoin (USD):</label>
-    <input type="number" v-model.number="hargaBeli" placeholder="Masukkan harga beli">
+<div id="app" class="p-4 md:p-8">
+    <div class="max-w-6xl mx-auto bg-white shadow-xl rounded-2xl overflow-hidden">
+        
+        <!-- Header -->
+        <header class="p-6 bg-gradient-to-r from-teal-500 to-cyan-600 text-white">
+            <h1 class="text-3xl font-bold mb-1">Simulator P&L Futures Binance</h1>
+            <p class="text-teal-100">Hitung perkiraan keuntungan/kerugian setelah dikurangi biaya Taker/Maker.</p>
+        </header>
 
-    <table v-if="modal && hargaBeli">
-      <thead>
-        <tr>
-          <th>Target (%)</th>
-          <th>Target Harga BTC (USD)</th>
-          <th>Profit Bersih (USDT)</th>
-          <th>Profit Bersih (IDR)</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="target in targetList" :key="target">
-          <td :class="{ negative: target < 0 }">{{ target.toFixed(1) }}</td>
-          <td
-            class="copyable"
-            @click="copyToClipboard(getTargetResult(target).price.toFixed(2), target)"
-          >
-            <span :class="{ negative: getTargetResult(target).price < hargaBeli }">
-              {{ getTargetResult(target).price.toFixed(2) }}
-            </span>
-            <span v-if="copiedIdx === target" class="copied-msg">Disalin!</span>
-          </td>
-          <td :class="{ negative: getTargetResult(target).profitUSDT < 0 }">
-            {{ getTargetResult(target).profitUSDT.toFixed(2) }}
-          </td>
-          <td :class="{ negative: getTargetResult(target).profitIDR < 0 }">
-            {{ getTargetResult(target).profitIDR.toLocaleString() }}
-          </td>
-        </tr>
-      </tbody>
-    </table>
-    <div v-if="showCopiedAlert" style="color:#166534; margin-top:10px; font-size:14px;">
-      {{ copiedText }}
+        <!-- Main Content -->
+        <div class="p-6 grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- Input Form -->
+            <div class="lg:col-span-1 bg-gray-50 p-6 rounded-xl shadow-inner">
+                <h2 class="text-2xl font-semibold mb-4 text-gray-800">1. Parameter Perhitungan</h2>
+                
+                <div class="space-y-4">
+                    
+                    <!-- Modal (Capital) -->
+                    <div>
+                        <label for="capital" class="block text-sm font-medium text-gray-700">Modal (USD)</label>
+                        <input type="number" id="capital" v-model.number="capital" 
+                                class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-3 
+                                focus:ring-teal-500 focus:border-teal-500 border-2" 
+                                min="1" step="any">
+                    </div>
+
+                    <!-- Entry Price -->
+                    <div>
+                        <label for="entryPrice" class="block text-sm font-medium text-gray-700">Harga Masuk (Entry Price)</label>
+                        <input type="number" id="entryPrice" v-model.number="entryPrice" 
+                                class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-3 
+                                focus:ring-teal-500 focus:border-teal-500 border-2" 
+                                min="0.00000001" step="any">
+                    </div>
+
+                    <!-- Leverage -->
+                    <div>
+                        <label for="leverage" class="block text-sm font-medium text-gray-700">Leverage (X)</label>
+                        <input type="number" id="leverage" v-model.number="leverage" 
+                                class="mt-1 block w-full rounded-lg border-gray-300 shadow-sm p-3 
+                                focus:ring-teal-500 focus:border-teal-500 border-2" 
+                                min="1" max="125" step="1">
+                    </div>
+                </div>
+
+                <!-- UPDATED FEE & BREAK-EVEN ANALYSIS BOX -->
+                <div class="mt-6 p-4 bg-yellow-100 border-l-4 border-yellow-500 rounded-lg">
+                    <p class="text-sm text-yellow-800 font-medium">Catatan Biaya (Fee) & Analisis Break-Even:</p>
+                    <ul class="text-xs text-yellow-700 space-y-1 ml-4">
+                        <!-- Fee Rates -->
+                        <li>Taker Fee (Per Transaksi): {{ (feeRateTaker / 2 * 100).toFixed(3) }}% (Round Trip: {{ (feeRateTaker * 100).toFixed(3) }}%)</li>
+                        <li>Maker Fee (Per Transaksi): {{ (feeRateMaker / 2 * 100).toFixed(3) }}% (Round Trip: {{ (feeRateMaker * 100).toFixed(3) }}%)</li>
+                        
+                        <!-- Min Change for Break Even -->
+                        <li class="pt-2 font-bold text-gray-800">
+                            Min. Perubahan Harga untuk Break-Even (P&L Bersih $0):
+                        </li>
+                        <li>
+                            <span class="font-semibold text-green-700">Maker:</span> {{ (minChangeMaker * 100).toFixed(2) }} %
+                        </li>
+                        <li>
+                            <span class="font-semibold text-red-700">Taker:</span> {{ (minChangeTaker * 100).toFixed(2) }} %
+                        </li>
+                        <li class="mt-1 text-[10px] italic text-gray-600">
+                            (Nilai ini hanya bergantung pada total biaya dan tidak dipengaruhi oleh Modal atau Leverage.)
+                        </li>
+                    </ul>
+                </div>
+                <!-- END UPDATED BOX -->
+            </div>
+
+            <!-- Results Table -->
+            <div class="lg:col-span-2 overflow-x-auto">
+                <h2 class="text-2xl font-semibold mb-4 text-gray-800">2. Hasil Simulasi P&L (-0.4% s/d +1.5%, step 0.05%)</h2>
+                
+                <table class="min-w-full divide-y divide-gray-200 shadow-lg rounded-xl">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th scope="col" class="px-3 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                                % Perubahan Harga
+                            </th>
+                            <!-- NEW COLUMN ADDED HERE -->
+                            <th scope="col" class="px-3 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                                Harga Keluar (Exit Price)
+                            </th>
+                            <th scope="col" class="px-3 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                                P&L % (Leverage)
+                            </th>
+                            <th scope="col" class="px-3 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider maker-color">
+                                P&L Bersih (Maker)
+                                <span class="text-[10px] block text-gray-500">(setelah fee)</span>
+                            </th>
+                            <th scope="col" class="px-3 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider taker-color">
+                                P&L Bersih (Taker)
+                                <span class="text-[10px] block text-gray-500">(setelah fee)</span>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <!-- Loop through the results -->
+                        <tr v-for="result in calculatedResults" :key="result.percentChange" 
+                            class="hover:bg-gray-50 transition duration-150">
+                            
+                            <!-- % Perubahan Harga -->
+                            <td :class="['px-3 py-2 whitespace-nowrap text-sm font-medium', result.percentChange >= 0 ? 'text-green-600' : 'text-red-600']">
+                                {{ (result.percentChange * 100).toFixed(2) }} %
+                            </td>
+
+                            <!-- Harga Keluar (Exit Price) -->
+                            <td class="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-800">
+                                <span class="font-mono">$ {{ result.exitPrice.toFixed(4) }}</span>
+                            </td>
+                            
+                            <!-- P&L % (Leverage) -->
+                            <td :class="['px-3 py-2 whitespace-nowrap text-sm font-medium', result.pnlPercentage >= 0 ? 'text-green-500' : 'text-red-500']">
+                                {{ (result.pnlPercentage * 100).toFixed(1) }} %
+                            </td>
+                            
+                            <!-- P&L Bersih (Maker) -->
+                            <td :class="['px-3 py-2 whitespace-nowrap text-sm font-bold maker-color', result.finalPnlMaker >= 0 ? 'text-green-700' : 'text-red-700']">
+                                <span class="font-mono">$ {{ result.finalPnlMaker.toFixed(2) }}</span>
+                            </td>
+                            
+                            <!-- P&L Bersih (Taker) -->
+                            <td :class="['px-3 py-2 whitespace-nowrap text-sm font-bold taker-color', result.finalPnlTaker >= 0 ? 'text-green-700' : 'text-red-700']">
+                                <span class="font-mono">$ {{ result.finalPnlTaker.toFixed(2) }}</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div v-if="!isInputValid" class="mt-4 p-4 text-center bg-red-100 border border-red-400 text-red-700 rounded-lg">
+                    Mohon masukkan Modal dan Harga Masuk yang valid (lebih besar dari nol).
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
+</div>
 
-  <script>
-    const { createApp } = Vue;
+<script>
+const { createApp, ref, computed, watch } = Vue // Import 'watch'
 
-    createApp({
-      data() {
+// Kunci untuk menyimpan data di localStorage
+const STORAGE_KEY = 'binanceFuturesSimulatorData';
+
+// Fungsi untuk memuat data dari localStorage
+const loadState = () => {
+    try {
+        const savedData = localStorage.getItem(STORAGE_KEY);
+        if (savedData) {
+            return JSON.parse(savedData);
+        }
+    } catch (e) {
+        console.error("Error loading state from localStorage:", e);
+    }
+    // Nilai default jika tidak ada data tersimpan
+    return { capital: 100, entryPrice: 50000, leverage: 10 };
+};
+
+// Fee Rate Binance Futures (Round-Trip - Masuk & Keluar)
+// Maker Fee: 0.020% (0.0002) -> Round Trip: 0.0004
+const feeRateMaker = 0.0002 * 2; 
+// Taker Fee: 0.040% (0.0004) -> Round Trip: 0.0008
+const feeRateTaker = 0.0004 * 2; 
+
+// CALCULATED MINIMUM CHANGE FOR BREAK EVEN (di mana P&L Bersih = $0)
+// Rumus: Minimum % Change = Total Round Trip Fee Rate (tidak tergantung Modal/Leverage)
+const minChangeMaker = feeRateMaker; // 0.04%
+const minChangeTaker = feeRateTaker; // 0.08%
+
+createApp({
+    setup() {
+        // Muat state awal
+        const initialState = loadState();
+
+        // --- Data Reaktif ---
+        const capital = ref(initialState.capital);     // Modal awal (USD)
+        const entryPrice = ref(initialState.entryPrice); // Harga masuk
+        const leverage = ref(initialState.leverage);   // Leverage
+        
+        // Fungsi untuk menyimpan data ke localStorage
+        const saveState = () => {
+            const dataToSave = {
+                capital: capital.value,
+                entryPrice: entryPrice.value,
+                leverage: leverage.value,
+            };
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+            } catch (e) {
+                console.error("Error saving state to localStorage:", e);
+            }
+        };
+
+        // Watchers: Simpan state setiap kali salah satu input berubah
+        watch([capital, entryPrice, leverage], saveState, { deep: true });
+
+
+        // --- Komputasi Hasil ---
+        const isInputValid = computed(() => {
+            return capital.value > 0 && entryPrice.value > 0 && leverage.value > 0;
+        });
+
+        const calculatedResults = computed(() => {
+            if (!isInputValid.value) {
+                return [];
+            }
+
+            const results = [];
+            
+            // Perubahan: Loop dari -0.4% (-8/2000) sampai +1.5% (30/2000), dengan step 0.05% (1/2000)
+            // -0.4% = -8 * 0.05%
+            // 1.5% = 30 * 0.05%
+            for (let i = -8; i <= 30; i++) {
+                // Konversi iterasi ke persentase perubahan harga (e.g., -8 -> -0.004)
+                const priceChangeRatio = i / 2000; 
+                
+                // --- CALCULATION: Exit Price ---
+                const exitPrice = entryPrice.value * (1 + priceChangeRatio);
+
+                // Ukuran Posisi Penuh (Modal * Leverage)
+                const positionSize = capital.value * leverage.value; 
+
+                // P&L % Berdasarkan Leverage
+                // pnlPercentage = Leverage * Price Change %
+                const pnlPercentage = leverage.value * priceChangeRatio;
+
+                // P&L Mentah (Gross P&L) dalam USD sebelum dikurangi Fee
+                // rawPnlUSD = Modal * P&L %
+                const rawPnlUSD = capital.value * pnlPercentage;
+
+                // Hitung Total Fee (Round Trip: Masuk dan Keluar)
+                // Total Fee = Ukuran Posisi * Fee Rate (sudah dikali 2 di atas)
+                const feeUSD_Taker = positionSize * feeRateTaker;
+                const feeUSD_Maker = positionSize * feeRateMaker;
+
+                // P&L Bersih (Net P&L)
+                const finalPnlTaker = rawPnlUSD - feeUSD_Taker;
+                const finalPnlMaker = rawPnlUSD - feeUSD_Maker;
+
+                results.push({
+                    percentChange: priceChangeRatio, // e.g., -0.004
+                    exitPrice: exitPrice, // Harga Keluar
+                    pnlPercentage: pnlPercentage,   // e.g., -0.04 (for 10x leverage)
+                    finalPnlTaker: finalPnlTaker,
+                    finalPnlMaker: finalPnlMaker,
+                });
+            }
+            return results;
+        });
+
         return {
-          modal: '',
-          hargaBeli: '',
-          fee: 0.001, // 0.1% fee Binance beli/jual
-          kursIDR: 16000,
-          targetList: [-0.4,-0.3,-0.2,-0.1,0.1, 0.2, 0.3, 0.4, 0.5,0.6,0.7,0.8,0.9,1],
-          copiedText: '',
-          copiedIdx: null,
-          showCopiedAlert: false,
-          copiedTimeout: null,
+            capital,
+            entryPrice,
+            leverage,
+            feeRateTaker: feeRateTaker / 2, // Display one-sided rate
+            feeRateMaker: feeRateMaker / 2, // Display one-sided rate
+            minChangeMaker, // New: Min change for Maker break-even
+            minChangeTaker, // New: Min change for Taker break-even
+            calculatedResults,
+            isInputValid
         }
-      },
-      methods: {
-        getTargetResult(targetPercent) {
-          // Hitung profit bersih dalam USDT
-          const profitUSDT = this.modal * (targetPercent / 100);
+    }
+}).mount('#app')
+</script>
 
-          // Hitung jumlah BTC yang dibeli setelah fee beli
-          const btc = (this.modal / this.hargaBeli) * (1 - this.fee);
-
-          // Hitung target harga bersih setelah fee jual
-          const targetPrice = (this.modal + profitUSDT) / (btc * (1 - this.fee));
-
-          // Hitung profit dalam Rupiah
-          const profitIDR = profitUSDT * this.kursIDR;
-
-          return {
-            profitUSDT,
-            price: targetPrice,
-            profitIDR
-          }
-        },
-        copyToClipboard(text, idx) {
-          // Use Clipboard API if available
-          if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text);
-          } else {
-            // fallback
-            const textarea = document.createElement('textarea');
-            textarea.value = text;
-            textarea.setAttribute('readonly', '');
-            textarea.style.position = 'absolute';
-            textarea.style.left = '-9999px';
-            document.body.appendChild(textarea);
-            textarea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textarea);
-          }
-          this.copiedIdx = idx;
-          this.copiedText = `Berhasil menyalin: ${text} ke clipboard.`;
-          this.showCopiedAlert = true;
-
-          // Clear message after 1s
-          clearTimeout(this.copiedTimeout);
-          this.copiedTimeout = setTimeout(() => {
-            this.copiedIdx = null;
-            this.copiedText = '';
-            this.showCopiedAlert = false;
-          }, 1000);
-        }
-      }
-    }).mount('#app');
-  </script>
 </body>
 </html>
