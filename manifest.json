@@ -1,5 +1,20 @@
 {
     "version": "1.44",
     "bro":"true",
-    "shop":"true"
+    "shop":"true",
+    "product": "BroImbalanceLite",
+  "manifest_version": 2,
+  "global_enabled": true,
+  "generated_utc": "2026-05-24T00:00:00Z",
+  "message": "",
+  "server_time_code": [
+    {
+      "id": "Malik-CUST-0001",
+      "xx": "taufikakbarmalikitkj05101995",
+      "cc": "Malik-CUST-0001",
+      "mm": "private",
+      "status": "active",
+      "expires_utc": null
+    }
+  ]
 }
